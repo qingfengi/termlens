@@ -48,8 +48,9 @@ export const termSettingsSchema = z.object({
   ignoredTerms: z.array(z.string()).default([]),
   selectionAuto: z.boolean().default(false),
   assistantPaused: z.boolean().default(false),
-  selectionHotkey: z.string().max(100).default('Control+Shift+Space')
-  ,maxNestedDepth: z.number().int().min(1).max(20).default(10)
+  selectionHotkey: z.string().max(100).default('Control+Shift+Space'),
+  maxNestedDepth: z.number().int().min(1).max(20).default(10),
+  selectionMode: z.enum(['explain', 'tokenize']).default('explain')
 })
 
 export const transcriptionSettingsSchema = z.object({

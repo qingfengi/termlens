@@ -19,7 +19,7 @@ const invokeMap = <T extends Record<string, string>>(map: T) =>
 const enabled: Array<keyof TermLensApi> = [
   'sourcePickFile', 'sourceImport', 'sourceStatus', 'sourcePause', 'sourceCancel', 'sourceList', 'sourceGet', 'sourceDelete', 'sourceAnalyze', 'sourceAsk', 'sourceOpenLocation', 'sourceOpenReader',
   'configGet', 'configUpdate', 'providerList', 'providerUpsert', 'providerRemove', 'providerTest', 'providerModels',
-  'termDetect', 'termBrief', 'termDetail', 'termFollowup', 'termThread', 'termHistory', 'termCustomUpsert',
+  'termDetect', 'termExplainSelection', 'termBrief', 'termDetail', 'termFollowup', 'termThread', 'termHistory', 'termCustomUpsert',
   'readerList', 'readerSave', 'readerDelete', 'windowMinimize', 'windowClose',
   'selectionGet', 'selectionConfigure', 'selectionOpenManager', 'selectionHide'
 ]

@@ -68,3 +68,5 @@ npm run pack:win
 Electron 提供窗口、托盘、快捷键和主进程；React/TypeScript 构建界面；CSS 控制排版与显示状态；Windows UI Automation 读取选区；SQLite 持久保存记录。前端仅能调用预先列出的内部接口，所有输入在主进程再次校验。
 
 参考项目：[YouTube Digest](https://github.com/zarazhangrui/youtube-digest)，MIT 许可。此版本保留 TermLens 自身桌面实现，没有复制其代码。源代码公开可供查看；当前尚未授予开源再分发许可。
+
+选中文字后可在浮窗选择“整段解释”或“只分词”。整段解释会先概括选区，再拆分词语，并结合同一概念路径及最近查询概念；只分词模式只标记词语，不自动请求解释。

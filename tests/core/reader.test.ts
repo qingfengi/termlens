@@ -62,6 +62,16 @@ describe('reader and terminology workflows', () => {
     expect(result.warning).not.toContain('sensitive')
   })
 
+  it('explains a whole selection with term breakdown and prior concept context', async () => {
+    const model = service(async function* () {
+      yield { type: 'delta', text: JSON.stringify({ summary: '这段话说明两个概念的关系。', termExplanations: [{ surface: '机器学习', explanation: '从数据中学习规律。' }], context: '它与上一轮概念形成递进关系。' }) }
+    })
+    const result = await model.explainSelection('机器学习与回测', ['机会成本'])
+    expect(result.summary).toContain('两个概念')
+    expect(result.termExplanations[0].surface).toBe('机器学习')
+    expect(result.context).toContain('递进')
+  })
+
   it('caches a valid model explanation and recovers it after database reopen without a model', async () => {
     const model = service(async function* () { yield { type: 'delta', text: JSON.stringify({ brief: '测试解释', definition: '一个用于测试的概念', related: ['概念'] }) } })
     expect((await model.explain(unknown)).source).toBe('llm')

@@ -23,6 +23,14 @@ export interface TermAnalysis {
   warning?: string
 }
 
+export interface SelectionExplanation {
+  text: string
+  summary: string
+  termExplanations: Array<{ surface: string; explanation: string }>
+  context: string
+  source: 'llm'
+}
+
 export interface OpenTermRequest {
   term: Term
   parentThreadId?: string
@@ -51,6 +59,7 @@ export interface TermLensApi {
   providerTest(id: string): Promise<TestResult>
   providerModels(request: ProviderModelsRequest): Promise<ProviderModelsResult>
   termDetect(request: { text: string; useAi?: boolean }): Promise<TermAnalysis>
+  termExplainSelection(request: { text: string; contextTerms?: string[] }): Promise<SelectionExplanation>
   termBrief(term: Term): Promise<Explanation>
   termDetail(request: OpenTermRequest): Promise<{ explanation: Explanation; thread: ConceptThread }>
   termFollowup(request: { threadId: string; question: string }): Promise<ConceptThread>

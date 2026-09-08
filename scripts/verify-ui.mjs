@@ -143,11 +143,14 @@ try {
     }
     await waitForQuickVisibility(false)
   }
-  const fixture = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'scripts', 'verify-selection.ps1'), '-TriggerHotkey'], { windowsHide: true, env: { ...env, TEMP: path.join(root, 'qa'), TMP: path.join(root, 'qa') }, stdio: 'ignore' })
+  // Existing native selection assertions exercise the tokenized popup; the product default remains whole-selection explanation.
+  await window.evaluate(() => window.termlens.configUpdate({ term: { selectionMode: 'tokenize' } }))
+  const fixture = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'scripts', 'verify-selection.ps1'), '-DelayedTrigger'], { windowsHide: true, env: { ...env, TEMP: path.join(root, 'qa'), TMP: path.join(root, 'qa') }, stdio: 'ignore' })
   let quickWindow
   try {
     quickWindow = application.windows().find((candidate) => candidate !== window)
     await waitForQuickVisibility(true)
+    await quickWindow.getByLabel('选区处理模式', { exact: true }).selectOption('tokenize')
     await quickWindow.locator('.quick-detail h1').filter({ hasText: 'TermLens' }).waitFor()
     await quickWindow.screenshot({ path: path.join(data, 'native-selection-popup.png'), fullPage: true })
   } finally { fixture.kill() }

@@ -35,6 +35,7 @@ export const PUBLIC_CHANNELS = {
 
   // 术语引擎（FR-4）
   termDetect: 'term:detect',
+  termExplainSelection: 'term:explain-selection',
   termBrief: 'term:brief',
   termDetail: 'term:detail',
   termFollowup: 'term:followup',

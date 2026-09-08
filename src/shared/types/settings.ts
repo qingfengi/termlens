@@ -43,6 +43,8 @@ export interface TermSettings {
   ignoredTerms: string[]
   /** AI 概念递归最大层数，防止无限展开和意外请求 */
   maxNestedDepth: number
+  /** 选中文本后的默认处理方式 */
+  selectionMode: 'explain' | 'tokenize'
 }
 
 /** 语音转写设置（FR-1） */

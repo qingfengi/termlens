@@ -73,6 +73,7 @@ export function registerIpc(kernel: AppKernel): void {
     return result.ok ? result : { ok: false, latencyMs: result.latencyMs, error: '连接失败，请检查地址、模型、余额和密钥。' }
   })
   handle('termDetect', z.object({ text: z.string().max(100000), useAi: z.boolean().optional() }), ({ text, useAi }) => terms.detect(text, useAi))
+  handle('termExplainSelection', z.object({ text: z.string().trim().min(1).max(16000), contextTerms: z.array(z.string().trim().min(1).max(100)).max(20).optional() }).strict(), (input) => terms.explainSelection(input.text, input.contextTerms ?? []))
   handle('termBrief', termSchema, (term) => terms.explain(term))
   handle('termDetail', z.object({ term: termSchema, parentThreadId: idSchema.optional(), threadId: idSchema.optional(), level: levelSchema.optional() }), (request) => terms.open(request))
   handle('termFollowup', z.object({ threadId: idSchema, question: z.string().trim().min(1).max(4000) }), ({ threadId, question }) => terms.followup(threadId, question))
