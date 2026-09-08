@@ -27,10 +27,14 @@ const server = createServer(async (request, response) => {
   if (requestMode === 'hold') return
   let answer
   if (body.messages[0].content.includes('识别资料中的专业术语')) answer = { terms: ['机器学习', '差分隐私', '原文不存在的术语'] }
+  else if (body.messages[0].content.includes('解释用户选中的整段学习材料')) answer = { summary: '这段资料介绍学习概念。', termExplanations: [{ surface: '机器学习', explanation: '从数据中学习规律。' }], context: '' }
   else {
     const input = JSON.parse(body.messages.at(-1).content)
-    assert(input.excerpts.length <= 6)
-    answer = requestMode === 'bad-citation' ? { answer: 'invalid', citationIds: ['invented'] } : { answer: '根据原文，差分隐私限制单条数据的影响。', citationIds: [input.excerpts[0].id] }
+    if (!Array.isArray(input.excerpts)) answer = { summary: '这段资料介绍学习概念。', termExplanations: [{ surface: '机器学习', explanation: '从数据中学习规律。' }], context: '' }
+    else {
+      assert(input.excerpts.length <= 6)
+      answer = requestMode === 'bad-citation' ? { answer: 'invalid', citationIds: ['invented'] } : { answer: '根据原文，差分隐私限制单条数据的影响。', citationIds: [input.excerpts[0].id] }
+    }
   }
   response.writeHead(200, { 'Content-Type': 'text/event-stream' })
   response.end(`data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(answer) } }] })}\n\ndata: [DONE]\n\n`)
