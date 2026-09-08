@@ -14,6 +14,7 @@ export function QuickPage(): JSX.Element {
   const [question, setQuestion] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'reading' | 'explaining' | 'prefetching'>('idle')
   const [automatic, setAutomatic] = useState(false)
   const [useAi, setUseAi] = useState(false)
   const [hotkey, setHotkey] = useState('Ctrl + Shift + Space')
@@ -70,6 +71,7 @@ export function QuickPage(): JSX.Element {
     if (!source.trim()) return
     const run = ++sequence.current
     setBusy(true)
+    setPhase('reading')
     setPrefetch({ done: 0, total: 0, failed: 0 })
     setError('')
     try {
@@ -79,7 +81,7 @@ export function QuickPage(): JSX.Element {
       setTerms(result.terms)
       if (result.warning) setError(result.warning)
       if (latest.current.selectionMode === 'explain') {
-        setBusy(false)
+        setPhase('explaining')
         setSelectionExplanation(undefined)
         try {
           const explained = await api().termExplainSelection({ text: source, contextTerms: selectionContext.current })
@@ -97,12 +99,13 @@ export function QuickPage(): JSX.Element {
         if (run === sequence.current) setFrames([{ ...opened, term }])
       }
       if (latest.current.selectionMode === 'tokenize' && latest.current.speedMode && result.terms.length > 0) {
+        setPhase('prefetching')
         void prefetchTerms(result.terms, run, latest.current.speedConcurrency)
       } else {
         setPrefetch({ done: 0, total: 0, failed: 0 })
       }
     } catch (failure) { if (run === sequence.current) setError(errorText(failure)) }
-    finally { if (run === sequence.current) setBusy(false) }
+    finally { if (run === sequence.current) { setBusy(false); setPhase('idle') } }
   }
 
   async function prefetchTerms(found: Term[], run: number, concurrency: number): Promise<void> {
@@ -189,7 +192,7 @@ export function QuickPage(): JSX.Element {
           {text ? <div className="quick-annotated">{annotated()}</div> : <div className="quick-empty"><h1>选中，就在这里解释</h1><p>在其他软件里选中文字，按 <kbd>{hotkey}</kbd>。</p><p>开启“选中即解释”后，选择文字就会弹出浮窗。无需先把文章输入到这里。</p></div>}
           <button disabled={busy} onClick={() => setEditing(true)}>{text ? '编辑文字' : '粘贴文字'}</button>
         </>}
-        {busy && <span role="status">正在读取选中文字…</span>}
+        {busy && <span role="status">{phase === 'reading' ? '正在读取选中文字…' : '正在组织解释…'}</span>}
         {!busy && prefetch.total > 0 && <span role="status">速度模式：已处理 {prefetch.done}/{prefetch.total}{prefetch.failed ? `，失败 ${prefetch.failed}` : ''}</span>}
         {!busy && selectionExplanation && <section className="quick-selection-explanation" aria-label="整段解释"><h2>整段解释</h2><p>{selectionExplanation.summary}</p>{selectionExplanation.context && <p><strong>与上一轮概念的关系：</strong>{selectionExplanation.context}</p>}<h3>词语拆分</h3><ul>{selectionExplanation.termExplanations.map((item) => <li key={`${item.surface}-${item.explanation}`}><strong>{item.surface}</strong>：{item.explanation}</li>)}</ul><span className="source-label">AI 生成 · 基于当前选区</span></section>}
       </section>
