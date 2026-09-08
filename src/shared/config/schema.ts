@@ -50,7 +50,10 @@ export const termSettingsSchema = z.object({
   assistantPaused: z.boolean().default(false),
   selectionHotkey: z.string().max(100).default('Control+Shift+Space'),
   maxNestedDepth: z.number().int().min(1).max(20).default(10),
-  selectionMode: z.enum(['explain', 'tokenize']).default('explain')
+  selectionMode: z.enum(['explain', 'tokenize']).default('explain'),
+  /** 独立术语的后台并发预取；整段解释始终单请求。 */
+  speedMode: z.boolean().default(true),
+  speedConcurrency: z.number().int().min(1).max(8).default(3)
 })
 
 export const transcriptionSettingsSchema = z.object({

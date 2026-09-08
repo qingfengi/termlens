@@ -45,6 +45,10 @@ export interface TermSettings {
   maxNestedDepth: number
   /** 选中文本后的默认处理方式 */
   selectionMode: 'explain' | 'tokenize'
+  /** 只分词模式下是否后台并发预取解释 */
+  speedMode: boolean
+  /** 后台并发请求数，限制在 1—8 */
+  speedConcurrency: number
 }
 
 /** 语音转写设置（FR-1） */

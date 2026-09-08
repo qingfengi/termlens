@@ -21,19 +21,22 @@ export function QuickPage(): JSX.Element {
   const [paused, setPaused] = useState(false)
   const [maxNestedDepth, setMaxNestedDepth] = useState(10)
   const [selectionMode, setSelectionMode] = useState<'explain' | 'tokenize'>('explain')
+  const [speedMode, setSpeedMode] = useState(true)
+  const [speedConcurrency, setSpeedConcurrency] = useState(3)
+  const [prefetch, setPrefetch] = useState({ done: 0, total: 0, failed: 0 })
   const [selectionExplanation, setSelectionExplanation] = useState<SelectionExplanation>()
   const [recentConcepts, setRecentConcepts] = useState<string[]>([])
   const lastSelection = useRef(0)
   const sequence = useRef(0)
   const selectionContext = useRef<string[]>([])
-  const latest = useRef({ busy, question, useAi, selectionMode })
-  latest.current = { busy, question, useAi, selectionMode }
+  const latest = useRef({ busy, question, useAi, selectionMode, speedMode, speedConcurrency })
+  latest.current = { busy, question, useAi, selectionMode, speedMode, speedConcurrency }
   const active = frames.at(-1)
 
   useEffect(() => {
     let disposed = false
     void api().configGet().then((config) => {
-      if (!disposed) { setAutomatic(config.term.selectionAuto); setHotkey(config.term.selectionHotkey.replace('Control', 'Ctrl').replaceAll('+', ' + ')); setMaxNestedDepth(config.term.maxNestedDepth); setSelectionMode(config.term.selectionMode) }
+      if (!disposed) { setAutomatic(config.term.selectionAuto); setHotkey(config.term.selectionHotkey.replace('Control', 'Ctrl').replaceAll('+', ' + ')); setMaxNestedDepth(config.term.maxNestedDepth); setSelectionMode(config.term.selectionMode); setSpeedMode(config.term.speedMode); setSpeedConcurrency(config.term.speedConcurrency) }
     }).catch((failure) => { if (!disposed) setError(errorText(failure)) })
     void api().termHistory().then((history) => { if (!disposed) setRecentConcepts([...new Set(history.flatMap((thread) => thread.path.map((term) => term.canonical)))].slice(-20)) }).catch(() => {})
     const timer = setInterval(() => {
@@ -58,6 +61,7 @@ export function QuickPage(): JSX.Element {
     setText(selection.text)
     setEditing(false)
     setTerms([])
+    setPrefetch({ done: 0, total: 0, failed: 0 })
     setError(selection.error ?? '')
     if (selection.text) await analyze(selection.text, true)
   }
@@ -66,6 +70,7 @@ export function QuickPage(): JSX.Element {
     if (!source.trim()) return
     const run = ++sequence.current
     setBusy(true)
+    setPrefetch({ done: 0, total: 0, failed: 0 })
     setError('')
     try {
       if (save) await api().readerSave({ title: source.trim().slice(0, 60), text: source })
@@ -91,8 +96,31 @@ export function QuickPage(): JSX.Element {
         const opened = await api().termDetail({ term })
         if (run === sequence.current) setFrames([{ ...opened, term }])
       }
+      if (latest.current.selectionMode === 'tokenize' && latest.current.speedMode && result.terms.length > 0) {
+        void prefetchTerms(result.terms, run, latest.current.speedConcurrency)
+      } else {
+        setPrefetch({ done: 0, total: 0, failed: 0 })
+      }
     } catch (failure) { if (run === sequence.current) setError(errorText(failure)) }
     finally { if (run === sequence.current) setBusy(false) }
+  }
+
+  async function prefetchTerms(found: Term[], run: number, concurrency: number): Promise<void> {
+    const unique = [...new Map(found.map((term) => [`${term.canonical.toLowerCase()}|${term.domain}`, term])).values()]
+    let cursor = 0
+    let done = 0
+    let failed = 0
+    setPrefetch({ done: 0, total: unique.length, failed: 0 })
+    const worker = async (): Promise<void> => {
+      while (cursor < unique.length) {
+        if (run !== sequence.current) return
+        const term = unique[cursor++]
+        try { await api().termBrief(term) } catch { failed += 1 }
+        done += 1
+        if (run === sequence.current) setPrefetch({ done, total: unique.length, failed })
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, unique.length) }, () => worker()))
   }
 
   async function open(term: Term, parents: Frame[] = []): Promise<void> {
@@ -152,6 +180,8 @@ export function QuickPage(): JSX.Element {
         <label><input type="checkbox" checked={automatic} onChange={(event) => void toggleAutomatic(event.target.checked)} />选中即解释</label>
         <label><input type="checkbox" checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />AI 分词</label>
         <label>选区模式 <select aria-label="选区处理模式" value={selectionMode} onChange={(event) => { const mode = event.target.value as 'explain' | 'tokenize'; setSelectionMode(mode); void api().configUpdate({ term: { selectionMode: mode } }).catch((failure) => setError(errorText(failure))) }}><option value="explain">整段解释</option><option value="tokenize">只分词</option></select></label>
+        <label><input type="checkbox" checked={speedMode} onChange={(event) => { const enabled = event.target.checked; setSpeedMode(enabled); void api().configUpdate({ term: { speedMode: enabled } }).catch((failure) => setError(errorText(failure))) }} />速度模式</label>
+        {speedMode && <label>并发 <input aria-label="术语并发数" type="number" min={1} max={8} value={speedConcurrency} onChange={(event) => { const value = Math.max(1, Math.min(8, Number(event.target.value) || 1)); setSpeedConcurrency(value); void api().configUpdate({ term: { speedConcurrency: value } }).catch((failure) => setError(errorText(failure))) }} /></label>}
       </div>
       {queued && <div className="quick-queued"><span>有新的选中文字</span><button disabled={busy} onClick={() => void accept(queued)}>打开</button></div>}
       <section className="quick-input">
@@ -160,6 +190,7 @@ export function QuickPage(): JSX.Element {
           <button disabled={busy} onClick={() => setEditing(true)}>{text ? '编辑文字' : '粘贴文字'}</button>
         </>}
         {busy && <span role="status">正在读取选中文字…</span>}
+        {!busy && prefetch.total > 0 && <span role="status">速度模式：已处理 {prefetch.done}/{prefetch.total}{prefetch.failed ? `，失败 ${prefetch.failed}` : ''}</span>}
         {!busy && selectionExplanation && <section className="quick-selection-explanation" aria-label="整段解释"><h2>整段解释</h2><p>{selectionExplanation.summary}</p>{selectionExplanation.context && <p><strong>与上一轮概念的关系：</strong>{selectionExplanation.context}</p>}<h3>词语拆分</h3><ul>{selectionExplanation.termExplanations.map((item) => <li key={`${item.surface}-${item.explanation}`}><strong>{item.surface}</strong>：{item.explanation}</li>)}</ul><span className="source-label">AI 生成 · 基于当前选区</span></section>}
       </section>
       {error && <Notice error>{error}</Notice>}
