@@ -3,7 +3,7 @@ import { zipSync, strToU8 } from 'fflate'
 import { mkdir, writeFile, unlink } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { extractBytes, extractHtml } from '../../src/main/sources/extract-parsers'
-import { extractSourceCore } from '../../src/main/sources/extract-source-core'
+import { extractSourceCore, normalizeLocalFileLocation } from '../../src/main/sources/extract-source-core'
 import { fetchPublicBytes, isPublicAddress, publicUrl, redactedLocation } from '../../src/main/sources/public-http'
 import { SOURCE_LIMITS } from '../../src/shared/types/source'
 
@@ -14,6 +14,10 @@ const fixturePath = resolve(scratch, 'fixture.txt')
 afterAll(async () => { await unlink(fixturePath).catch(() => undefined) })
 
 describe('source text and subtitle extraction', () => {
+  it('accepts common copied Windows file address forms', () => {
+    expect(normalizeLocalFileLocation('"D:\\资料\\课程.pdf"')).toBe('D:\\资料\\课程.pdf')
+    expect(normalizeLocalFileLocation('file:///D:/资料/课程.pdf')).toBe('D:\\资料\\课程.pdf')
+  })
   it('preserves paragraphs and splits large segments without exceeding aggregate bounds', async () => {
     const result = await extractBytes(text('甲乙\n\n第二段\n第三行'), 'txt', '/test.txt')
     expect(result.segments.map(({ label, text }) => [label, text])).toEqual([['段落 1', '甲乙'], ['段落 2', '第二段\n第三行']])

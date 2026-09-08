@@ -70,9 +70,10 @@ export function SourcesPage(): JSX.Element {
   }
 
   async function add(value = location): Promise<void> {
-    const normalized = value.trim()
+    const normalized = value.trim().replace(/^("|')([\s\S]*)\1$/, '$2').trim()
+    const fileLike = /^file:\/\//i.test(normalized) || /^[A-Za-z]:[\\/]/.test(normalized)
     if (!normalized) return
-    const task = await api().sourceImport({ kind: /^https?:\/\//i.test(normalized) ? 'url' : 'file', location: normalized })
+    const task = await api().sourceImport({ kind: /^https?:\/\//i.test(normalized) && !fileLike ? 'url' : 'file', location: normalized })
     pendingRead.current = task.id
     ++selectionVersion.current
     currentId.current = undefined
@@ -116,7 +117,7 @@ export function SourcesPage(): JSX.Element {
     {status.paused && <Notice>助手已暂停：新资料任务等待处理，正在进行的任务已停止，自动选词监听暂停。已保存内容仍可查看。</Notice>}
     <form className="source-import" onSubmit={(event) => { event.preventDefault(); void run(() => add()) }}>
       <button type="button" className="button-secondary" disabled={busy} onClick={() => void run(async () => { const path = await api().sourcePickFile(); if (path) await add(path) })}>选择文件</button>
-      <input aria-label="资料网址或文件路径" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="粘贴 https:// 网址或本机文件完整路径" maxLength={4000} />
+      <input aria-label="资料网址或文件路径" value={location} onChange={(event) => setLocation(event.target.value)} onPaste={(event) => { event.preventDefault(); setLocation(event.clipboardData.getData('text').trim().replace(/^("|')([\s\S]*)\1$/, '$2').trim()) }} placeholder="粘贴文件路径或 https:// 网址（支持带引号路径）" maxLength={4000} />
       <button className="button-primary" disabled={busy || !location.trim()}>开始读取</button>
     </form>
     <p className="sources-formats muted">文件：TXT、Markdown、CSV、HTML、DOCX、XLSX、PPTX、PDF、SRT/VTT 字幕。图片与扫描页暂不做文字识别；网页仅读取可获取内容。</p>

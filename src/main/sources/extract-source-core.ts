@@ -1,5 +1,5 @@
 import { open } from 'node:fs/promises'
-import { basename, extname, isAbsolute } from 'node:path'
+import { basename, extname, isAbsolute, normalize } from 'node:path'
 import { SOURCE_LIMITS, type ExtractedSource, type SourceRequest } from '../../shared/types/source'
 import { extractBytes } from './extract-parsers'
 import { fetchPublicBytes, publicUrl, redactedLocation } from './public-http'
@@ -12,16 +12,33 @@ function rejectVideoUrl(url: URL): void {
   }
 }
 
+/** 兼容资源管理器“复制为路径”和浏览器 file:/// 地址。 */
+export function normalizeLocalFileLocation(value: string): string {
+  let location = value.trim()
+  if ((location.startsWith('"') && location.endsWith('"')) || (location.startsWith("'") && location.endsWith("'"))) location = location.slice(1, -1).trim()
+  if (/^file:\/\//i.test(location)) {
+    try {
+      const url = new URL(location)
+      if (url.protocol !== 'file:') throw new Error('protocol')
+      location = decodeURIComponent(url.pathname)
+      if (/^\/[A-Za-z]:\//.test(location)) location = location.slice(1)
+      location = location.replace(/^\/+([A-Za-z]:)/, '$1')
+    } catch { throw new Error('文件地址格式不正确，请粘贴本机文件路径。') }
+  }
+  return normalize(location)
+}
+
 export async function extractSourceCore(request: SourceRequest, signal: AbortSignal, onProgress: (message: string) => void): Promise<ExtractedSource> {
   signal.throwIfAborted()
   if (!request.location || typeof request.location !== 'string') throw new Error('没有指定要读取的文件或网页。')
   if (request.kind === 'file') {
-    if (!isAbsolute(request.location)) throw new Error('请选择绝对路径的本地文件。')
-    if (/^(?:\\\\|\/\/)/.test(request.location)) throw new Error('暂不读取网络共享或设备路径，请先保存为本地文件。')
-    const format = extname(request.location).slice(1).toLowerCase()
+    const location = normalizeLocalFileLocation(request.location)
+    if (!isAbsolute(location)) throw new Error('请选择绝对路径的本地文件。示例：D:\\资料\\课程.pdf')
+    if (/^(?:\\\\|\/\/|\\\\\?\\)/.test(location)) throw new Error('暂不读取网络共享或设备路径，请先保存为本地文件。')
+    const format = extname(location).slice(1).toLowerCase()
     if (!['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt', 'docx', 'xlsx', 'pptx', 'pdf'].includes(format)) throw new Error('暂不支持此文件格式。')
     onProgress('正在读取本地文件…')
-    const handle = await open(request.location, 'r').catch(() => { throw new Error('文件无法打开，可能已移动或没有读取权限。') })
+    const handle = await open(location, 'r').catch(() => { throw new Error('文件无法打开，可能已移动或没有读取权限。') })
     let bytes: Uint8Array
     try {
       const info = await handle.stat()
@@ -41,7 +58,7 @@ export async function extractSourceCore(request: SourceRequest, signal: AbortSig
     } finally { await handle.close() }
     signal.throwIfAborted()
     onProgress(`正在提取 ${format.toUpperCase()} 文字…`)
-    return extractBytes(bytes, format, request.location)
+    return extractBytes(bytes, format, location)
   }
   if (request.kind !== 'url') throw new Error('当前窗口文字由窗口读取服务处理。')
   const url = publicUrl(request.location)
