@@ -47,6 +47,7 @@ export const termSettingsSchema = z.object({
   allowLlmDetection: z.boolean().default(true),
   ignoredTerms: z.array(z.string()).default([]),
   selectionAuto: z.boolean().default(false),
+  assistantPaused: z.boolean().default(false),
   selectionHotkey: z.string().max(100).default('Control+Shift+Space')
 })
 

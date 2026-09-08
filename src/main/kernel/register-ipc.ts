@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, dialog, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { AppKernel } from './app-kernel'
@@ -6,6 +6,7 @@ import { PUBLIC_CHANNELS } from '@shared/ipc/channels'
 import { appSettingsSchema, providerConfigSchema, providerModelsRequestSchema } from '@shared/config/schema'
 import { createChatProvider, listProviderModels } from '@shared/providers'
 import { termSchema } from '../terms/term-service'
+import { readCurrentWindow } from '../sources/read-window'
 
 const idSchema = z.string().min(1).max(160)
 const levelSchema = z.enum(['beginner', 'intermediate', 'expert'])
@@ -27,6 +28,39 @@ export function registerIpc(kernel: AppKernel): void {
     })
   }
   handle('configGet', z.undefined(), () => config.getSafe())
+  handle('sourcePickFile', z.undefined(), async () => {
+    const result = await dialog.showOpenDialog({ title: '选择阅读资料', properties: ['openFile'], filters: [{ name: '阅读资料', extensions: ['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt', 'docx', 'xlsx', 'pptx', 'pdf'] }] })
+    return result.canceled ? null : result.filePaths[0] ?? null
+  })
+  handle('sourceImport', z.object({ kind: z.enum(['file', 'url', 'window']), location: z.string().trim().min(1).max(4000).optional() }).strict(), (input) => {
+    if (input.kind === 'window') throw new Error('请切到要读的软件正文，按 Ctrl+Shift+R 读取。随后打开“资料阅读”查看结果。')
+    return kernel.sources.import(input, readCurrentWindow)
+  })
+  handle('sourceStatus', z.undefined(), () => kernel.sources.status())
+  handle('sourcePause', z.object({ paused: z.boolean() }).strict(), ({ paused }) => {
+    config.update({ term: { assistantPaused: paused } })
+    const state = kernel.sources.pause(paused)
+    kernel.selection.configure(!paused && config.getRaw().term.selectionAuto)
+    return state
+  })
+  handle('sourceCancel', idSchema, (id) => kernel.sources.cancel(id))
+  handle('sourceList', z.undefined(), () => repo.listSources())
+  handle('sourceGet', idSchema, (id) => repo.getSource(id))
+  handle('sourceDelete', idSchema, (id) => kernel.sources.delete(id))
+  handle('sourceAnalyze', z.object({ id: idSchema, useAi: z.boolean() }).strict(), (input) => kernel.sources.analyze(input.id, input.useAi))
+  handle('sourceAsk', z.object({ id: idSchema, question: z.string().trim().min(1).max(4000), segmentId: idSchema.optional(), term: z.string().min(1).max(100).optional() }).strict(), (input) => kernel.sources.ask(input))
+  handle('sourceOpenReader', z.undefined(), () => windows.showSources())
+  handle('sourceOpenLocation', z.object({ id: idSchema, segmentId: idSchema.optional() }).strict(), async ({ id, segmentId }) => {
+    const source = await repo.getSource(id)
+    if (!source) throw new Error('资料不存在。')
+    if (source.kind === 'file') { shell.showItemInFolder(source.location); return }
+    if (!['web', 'video'].includes(source.kind)) throw new Error('窗口快照没有可跳转的文件位置。')
+    const url = new URL(source.location)
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('原文地址无效。')
+    const segment = source.segments.find((item) => item.id === segmentId)
+    if (segment?.startSeconds !== undefined) url.searchParams.set('t', String(Math.floor(segment.startSeconds)))
+    await shell.openExternal(url.toString())
+  })
   handle('configUpdate', appSettingsSchema.pick({ appearance: true, providers: true, featureBindings: true, term: true }).deepPartial().strict(), (patch) => config.update(patch as Parameters<typeof config.update>[0]))
   handle('providerList', z.undefined(), () => config.getSafe().providers)
   handle('providerUpsert', providerConfigSchema, (provider) => config.upsertProvider(provider))
@@ -57,7 +91,7 @@ export function registerIpc(kernel: AppKernel): void {
   handle('selectionGet', z.undefined(), () => kernel.selection.snapshot)
   handle('selectionConfigure', z.object({ automatic: z.boolean() }), ({ automatic }) => {
     config.update({ term: { selectionAuto: automatic } })
-    kernel.selection.configure(automatic)
+    kernel.selection.configure(automatic && !kernel.sources.status().paused)
   })
   handle('selectionOpenManager', z.undefined(), () => { windows.showMainWindow(); windows.hideQuickWindow() })
   handle('selectionHide', z.undefined(), () => windows.hideQuickWindow())

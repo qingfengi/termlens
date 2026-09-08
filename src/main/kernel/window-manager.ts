@@ -51,6 +51,14 @@ export class WindowManager {
     return this.mainWindow
   }
 
+  showSources(): void {
+    const window = this.showMainWindow()
+    const navigate = (): void => { void window.webContents.executeJavaScript("location.hash = '/sources'") }
+    if (window.webContents.isLoading()) window.webContents.once('did-finish-load', navigate)
+    else navigate()
+    this.hideQuickWindow()
+  }
+
   showMainWindow(): BrowserWindow {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       if (this.mainWindow.isMinimized()) this.mainWindow.restore()

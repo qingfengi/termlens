@@ -7,6 +7,18 @@
  */
 
 export const PUBLIC_CHANNELS = {
+  sourcePickFile: 'source:pick-file',
+  sourceImport: 'source:import',
+  sourceStatus: 'source:status',
+  sourcePause: 'source:pause',
+  sourceCancel: 'source:cancel',
+  sourceList: 'source:list',
+  sourceGet: 'source:get',
+  sourceDelete: 'source:delete',
+  sourceAnalyze: 'source:analyze',
+  sourceAsk: 'source:ask',
+  sourceOpenLocation: 'source:open-location',
+  sourceOpenReader: 'source:open-reader',
   // 配置中心（FR-7）
   configGet: 'config:get',
   configUpdate: 'config:update',

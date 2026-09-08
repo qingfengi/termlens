@@ -1,6 +1,7 @@
 import type { AppSettingsParsed } from '../config/schema'
 import type { ProviderConfig, ProviderModelsRequest, ProviderModelsResult, TestResult } from '../types/provider'
 import type { ConceptThread, Explanation, ExplanationLevel, Term } from '../types/term'
+import type { SourceDocument, SourceRequest, SourceStatus, SourceSummary, SourceTask } from '../types/source'
 
 export interface ReaderDocument {
   id: string
@@ -30,6 +31,18 @@ export interface OpenTermRequest {
 }
 
 export interface TermLensApi {
+  sourcePickFile(): Promise<string | null>
+  sourceImport(request: SourceRequest): Promise<SourceTask>
+  sourceStatus(): Promise<SourceStatus>
+  sourcePause(request: { paused: boolean }): Promise<SourceStatus>
+  sourceCancel(taskId: string): Promise<void>
+  sourceList(): Promise<SourceSummary[]>
+  sourceGet(id: string): Promise<SourceDocument | undefined>
+  sourceDelete(id: string): Promise<void>
+  sourceAnalyze(request: { id: string; useAi: boolean }): Promise<SourceTask>
+  sourceAsk(request: { id: string; question: string; segmentId?: string; term?: string }): Promise<SourceTask>
+  sourceOpenLocation(request: { id: string; segmentId?: string }): Promise<void>
+  sourceOpenReader(): Promise<void>
   configGet(): Promise<AppSettingsParsed>
   configUpdate(patch: Partial<AppSettingsParsed>): Promise<AppSettingsParsed>
   providerList(): Promise<ProviderConfig[]>

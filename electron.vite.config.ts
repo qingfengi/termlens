@@ -14,7 +14,7 @@ export default defineConfig({
     resolve: { alias: sharedAlias },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/main/index.ts') }
+        input: { index: resolve('src/main/index.ts'), 'extract-worker': resolve('src/main/sources/extract-worker.ts') }
       }
     }
   },

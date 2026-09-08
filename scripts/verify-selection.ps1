@@ -1,4 +1,4 @@
-param([switch]$TriggerHotkey, [switch]$HoldSelection)
+param([switch]$TriggerHotkey, [switch]$HoldSelection, [switch]$TriggerRead)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -49,9 +49,10 @@ $timer.Add_Tick({
       }
       $box.Focus() | Out-Null
       $box.Select(0, 8)
-      if ($TriggerHotkey -or $HoldSelection) {
+      if ($TriggerHotkey -or $HoldSelection -or $TriggerRead) {
         [Console]::WriteLine("Selection fixture ready; hold=$HoldSelection; focused=$($box.Focused); selectedLength=$($box.SelectionLength).")
         if ($TriggerHotkey) { [System.Windows.Forms.SendKeys]::SendWait('^+ ') }
+        if ($TriggerRead) { [System.Windows.Forms.SendKeys]::SendWait('^+r') }
         $state.stage = 99
         $state.started = [DateTime]::UtcNow
         return

@@ -15,12 +15,17 @@
     "test:watch": "vitest",
     "test:native": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-selection.ps1",
     "test:browser-selection": "node scripts/verify-browser-selection.mjs",
+    "test:sources": "npm run build && node scripts/verify-sources.mjs",
     "test:ui": "npm run build && node scripts/verify-ui.mjs",
     "start": "electron-vite preview",
     "pack:win": "npm run build && electron-builder --win dir --x64"
   },
   "dependencies": {
+    "fast-xml-parser": "5.11.1",
+    "fflate": "0.8.3",
+    "linkedom": "0.18.13",
     "node-sqlite3-wasm": "0.8.30",
+    "pdfjs-dist": "6.3.289",
     "react-router-dom": "^7.18.3",
     "zod": "3.23.8",
     "zustand": "^4.5.5"
@@ -46,9 +51,23 @@
   "build": {
     "appId": "io.github.qingfengi.termlens",
     "productName": "TermLens",
-    "directories": { "output": "release" },
-    "files": ["out/**/*", "scripts/selected-text.ps1", "package.json"],
-    "asarUnpack": ["scripts/selected-text.ps1", "node_modules/node-sqlite3-wasm/**/*"],
-    "win": { "target": "dir", "signAndEditExecutable": false }
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "scripts/selected-text.ps1",
+      "scripts/read-window.ps1",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "scripts/selected-text.ps1",
+      "scripts/read-window.ps1",
+      "node_modules/node-sqlite3-wasm/**/*"
+    ],
+    "win": {
+      "target": "dir",
+      "signAndEditExecutable": false
+    }
   }
 }

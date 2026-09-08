@@ -17,6 +17,7 @@ export function QuickPage(): JSX.Element {
   const [useAi, setUseAi] = useState(false)
   const [hotkey, setHotkey] = useState('Ctrl + Shift + Space')
   const [queued, setQueued] = useState<SelectionSnapshot>()
+  const [paused, setPaused] = useState(false)
   const lastSelection = useRef(0)
   const sequence = useRef(0)
   const latest = useRef({ busy, question, useAi })
@@ -29,6 +30,7 @@ export function QuickPage(): JSX.Element {
       if (!disposed) { setAutomatic(config.term.selectionAuto); setHotkey(config.term.selectionHotkey.replace('Control', 'Ctrl').replaceAll('+', ' + ')) }
     }).catch((failure) => { if (!disposed) setError(errorText(failure)) })
     const timer = setInterval(() => {
+      void api().sourceStatus().then((status) => { if (!disposed) setPaused(status.paused) }).catch(() => {})
       void api().selectionGet().then((selection) => {
         if (disposed || !selection.id || selection.id === lastSelection.current) return
         lastSelection.current = selection.id
@@ -126,6 +128,8 @@ export function QuickPage(): JSX.Element {
     <div className="quick-shell">
       <header className="quick-header"><strong>TermLens</strong><div><button onClick={() => void api().selectionOpenManager()}>记录与设置</button><button className="quick-close" type="button" aria-label="关闭浮窗" title="关闭浮窗" onClick={() => void api().selectionHide()}><span aria-hidden="true">×</span></button></div></header>
       <div className="quick-controls">
+        <button type="button" onClick={() => void api().sourceOpenReader().catch((error) => setError(errorText(error)))}>资料阅读</button>
+        <label><input type="checkbox" checked={paused} onChange={(event) => void api().sourcePause({ paused: event.target.checked }).then((status) => setPaused(status.paused)).catch((error) => setError(errorText(error)))} />暂停助手</label>
         <label><input type="checkbox" checked={automatic} onChange={(event) => void toggleAutomatic(event.target.checked)} />选中即解释</label>
         <label><input type="checkbox" checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />AI 分词</label>
       </div>

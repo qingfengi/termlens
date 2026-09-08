@@ -127,6 +127,14 @@ export const MIGRATIONS: Migration[] = [
       id TEXT PRIMARY KEY, title TEXT NOT NULL, text TEXT NOT NULL,
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );`
+  },
+  {
+    version: 3,
+    sql: `CREATE TABLE IF NOT EXISTS source_documents (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, kind TEXT NOT NULL, format TEXT NOT NULL,
+      coverage TEXT NOT NULL, segment_count INTEGER NOT NULL, created_at INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );`
   }
 ]
 

@@ -1,5 +1,6 @@
 import type { ConceptThread, Explanation, ExplanationLevel, Term, ThreadMessage } from '@shared/types/term'
 import type { ReaderDocument } from '@shared/ipc/api'
+import type { SourceDocument, SourceSummary } from '@shared/types/source'
 import type {
   CachedExplanation,
   CustomTerm,
@@ -40,6 +41,28 @@ export class SqliteRepository implements Repository {
   close(): void {
     this.db?.close()
     this.db = null
+  }
+
+  async listSources(): Promise<SourceSummary[]> {
+    return this.ensureOpen().all('SELECT id,title,kind,format,coverage,segment_count,created_at FROM source_documents ORDER BY created_at DESC LIMIT 500').map((row) => ({
+      id: toText(row.id), title: toText(row.title), kind: toText(row.kind) as SourceSummary['kind'], format: toText(row.format),
+      coverage: toText(row.coverage) as SourceSummary['coverage'], segmentCount: toInt(row.segment_count), createdAt: toInt(row.created_at)
+    }))
+  }
+
+  async getSource(id: string): Promise<SourceDocument | undefined> {
+    const row = this.ensureOpen().get('SELECT payload FROM source_documents WHERE id=?', [id])
+    return row ? JSON.parse(toText(row.payload)) as SourceDocument : undefined
+  }
+
+  async putSource(source: SourceDocument): Promise<void> {
+    this.ensureOpen().run(`INSERT INTO source_documents(id,title,kind,format,coverage,segment_count,created_at,payload) VALUES(?,?,?,?,?,?,?,?)
+      ON CONFLICT(id) DO UPDATE SET title=excluded.title,kind=excluded.kind,format=excluded.format,coverage=excluded.coverage,segment_count=excluded.segment_count,payload=excluded.payload`,
+      [source.id, source.title, source.kind, source.format, source.coverage, source.segments.length, source.createdAt, JSON.stringify(source)])
+  }
+
+  async deleteSource(id: string): Promise<void> {
+    this.ensureOpen().run('DELETE FROM source_documents WHERE id=?', [id])
   }
 
   private ensureOpen(): SqliteDatabaseLike {
