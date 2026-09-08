@@ -4,7 +4,7 @@ import type { ProviderConfig, ProviderProtocol } from '@shared/types/provider'
 import { api, errorText, Notice } from './ui'
 
 const ENDPOINTS: Record<ProviderProtocol, string> = {
-  openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com', gemini: 'https://generativelanguage.googleapis.com'
+  openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com', gemini: 'https://generativelanguage.googleapis.com/v1beta'
 }
 const PROTOCOLS: Record<ProviderProtocol, string> = { openai: 'OpenAI 兼容', anthropic: 'Anthropic', gemini: 'Gemini' }
 
@@ -21,6 +21,7 @@ export function SettingsPage(): JSX.Element {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [models, setModels] = useState<Array<{ id: string; name?: string }>>()
   const selected = config?.providers.find((provider) => provider.id === draft?.id)
   const dirty = Boolean(draft && (JSON.stringify(draft) !== baseline || clearKey))
 
@@ -31,6 +32,7 @@ export function SettingsPage(): JSX.Element {
     setClearKey(false)
     setError('')
     setNotice('')
+    setModels(undefined)
   }
 
   async function load(): Promise<void> {
@@ -61,6 +63,33 @@ export function SettingsPage(): JSX.Element {
     setClearKey(false)
     setError('')
     setNotice('')
+    setModels(undefined)
+  }
+
+  function changeConnection(patch: Partial<ProviderConfig>): void {
+    if (!draft) return
+    setDraft({ ...draft, ...patch })
+    setModels(undefined)
+    setNotice('')
+    setError('')
+  }
+
+  async function fetchModels(): Promise<void> {
+    if (!draft || busy) return
+    setBusy('models')
+    setError('')
+    setNotice('')
+    setModels(undefined)
+    try {
+      const result = await api().providerModels({
+        id: selected?.id, protocol: draft.protocol, baseUrl: draft.baseUrl.trim(),
+        apiKey: clearKey ? '' : draft.apiKey || selected?.apiKey || ''
+      })
+      setDraft({ ...draft, baseUrl: result.baseUrl })
+      setModels(result.models)
+      setNotice(result.models.length ? `已获取 ${result.models.length} 个模型，请选择适合文字解释的模型。选好保存后可测试连接。` : '服务没有返回可选模型，仍可手动填写模型名称。')
+    } catch (cause) { reportError(cause) }
+    finally { setBusy('') }
   }
 
   function reportError(cause: unknown): void {
@@ -121,8 +150,7 @@ export function SettingsPage(): JSX.Element {
     try {
       const featureBindings = { ...config.featureBindings }
       for (const feature of ['termBrief', 'termDetail', 'termFollowup']) {
-        if (id) featureBindings[feature] = id
-        else delete featureBindings[feature]
+        featureBindings[feature] = id
       }
       setConfig(await api().configUpdate({ featureBindings }))
       setNotice('术语默认服务已保存')
@@ -148,11 +176,13 @@ export function SettingsPage(): JSX.Element {
               <div className="section-heading"><h2>{selected ? '编辑服务' : '新建服务'}</h2><span className={`save-state${dirty ? ' is-dirty' : ''}`}>{dirty ? '未保存' : '已保存'}</span></div>
               <fieldset disabled={Boolean(busy)}>
                 <label className="field"><span>服务名称</span><input aria-label="服务名称" value={draft.name} maxLength={100} required placeholder="例如：我的模型服务" onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
-                <label className="field"><span>连接协议</span><select aria-label="连接协议" value={draft.protocol} onChange={(event) => { const protocol = event.target.value as ProviderProtocol; setDraft({ ...draft, protocol, baseUrl: Object.values(ENDPOINTS).includes(draft.baseUrl) ? ENDPOINTS[protocol] : draft.baseUrl }) }}>{Object.entries(PROTOCOLS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <label className="field"><span>服务地址</span><input aria-label="服务地址" type="url" value={draft.baseUrl} required spellCheck={false} placeholder="https://" onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })} /></label>
-                <label className="field"><span>模型名称</span><input aria-label="模型名称" value={draft.model} required spellCheck={false} maxLength={200} placeholder="填写服务提供的模型名称" onChange={(event) => setDraft({ ...draft, model: event.target.value })} /></label>
-                <label className="field"><span>API 密钥 <small>{selected?.apiKey ? '已保存' : '可留空'}</small></span><input aria-label="API 密钥" type="password" autoComplete="new-password" spellCheck={false} disabled={clearKey} value={draft.apiKey} placeholder={selected?.apiKey ? '留空保留现有密钥' : '输入密钥'} onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })} /></label>
-                {selected?.apiKey && <label className="checkbox-label clear-key"><input type="checkbox" checked={clearKey} onChange={(event) => setClearKey(event.target.checked)} />移除已保存的密钥</label>}
+                <label className="field"><span>连接协议</span><select aria-label="连接协议" value={draft.protocol} onChange={(event) => { const protocol = event.target.value as ProviderProtocol; changeConnection({ protocol, baseUrl: Object.values(ENDPOINTS).includes(draft.baseUrl) ? ENDPOINTS[protocol] : draft.baseUrl }) }}>{Object.entries(PROTOCOLS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                <label className="field"><span>服务地址</span><input aria-label="服务地址" type="url" value={draft.baseUrl} required spellCheck={false} placeholder="https://" onChange={(event) => changeConnection({ baseUrl: event.target.value })} /></label>
+                <label className="field"><span>API 密钥 <small>{selected?.apiKey ? '已保存' : '可留空'}</small></span><input aria-label="API 密钥" type="password" autoComplete="new-password" spellCheck={false} disabled={clearKey} value={draft.apiKey} placeholder={selected?.apiKey ? '留空保留现有密钥' : '输入密钥'} onChange={(event) => changeConnection({ apiKey: event.target.value })} /></label>
+                {selected?.apiKey && <label className="checkbox-label clear-key"><input type="checkbox" checked={clearKey} onChange={(event) => { setClearKey(event.target.checked); setModels(undefined); setNotice('') }} />移除已保存的密钥</label>}
+                <div className="model-discovery"><button type="button" className="button-secondary" disabled={!draft.baseUrl.trim()} onClick={() => void fetchModels()}>{busy === 'models' ? '正在获取模型…' : '获取模型列表'}</button><p className="muted">填写地址和密钥即可获取，无需先保存。服务不支持时可手动填写。</p></div>
+                {Boolean(models?.length) && <label className="field"><span>可用模型</span><select aria-label="可用模型" value={models?.some((model) => model.id === draft.model) ? draft.model : ''} onChange={(event) => { if (event.target.value) setDraft({ ...draft, model: event.target.value }) }}><option value="">请选择模型</option>{models?.map((model) => <option key={model.id} value={model.id}>{model.name && model.name !== model.id ? `${model.name} · ${model.id}` : model.id}</option>)}</select></label>}
+                <label className="field"><span>模型名称 <small>可从列表选择，也可手动填写</small></span><input aria-label="模型名称" value={draft.model} required spellCheck={false} maxLength={200} placeholder="填写服务提供的模型名称" onChange={(event) => setDraft({ ...draft, model: event.target.value })} /></label>
                 <details className="request-options"><summary>请求设置</summary><div className="field-grid"><label className="field"><span>超时（秒）</span><input aria-label="超时秒数" type="number" min={1} max={600} step={1} required value={draft.timeoutMs / 1000} onChange={(event) => setDraft({ ...draft, timeoutMs: Number(event.target.value) * 1000 })} /></label><label className="field"><span>失败重试次数</span><input aria-label="失败重试次数" type="number" min={0} max={10} step={1} required value={draft.maxRetries} onChange={(event) => setDraft({ ...draft, maxRetries: Number(event.target.value) })} /></label></div></details>
                 <div className="provider-actions"><button type="submit" className="button-primary" disabled={!dirty}>{busy === 'save' ? '正在保存…' : '保存服务'}</button><button type="button" className="button-secondary" disabled={!selected || dirty} title={dirty ? '保存修改后可测试连接' : '测试已保存的连接'} onClick={() => void testConnection()}>{busy === 'test' ? '正在测试…' : '测试连接'}</button>{selected && <button type="button" className="text-button danger-text" onClick={() => void removeProvider()}>删除服务</button>}</div>
               </fieldset>

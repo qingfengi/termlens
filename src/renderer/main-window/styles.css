@@ -9,6 +9,8 @@
 .quick-controls label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .quick-shell button { border: 1px solid #c8d0d7; background: white; color: #263b42; padding: 6px 9px; border-radius: 4px; cursor: pointer; }
 .quick-shell button:disabled { cursor: default; opacity: .55; }
+.quick-shell .quick-close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; padding: 0; font-size: 28px; font-weight: 600; line-height: 1; }
+.quick-shell .quick-close:hover { background: #fff0ed; border-color: #b45a4f; color: #8e3c31; }
 .quick-shell textarea { width: 100%; resize: vertical; min-height: 60px; background: white; color: #22282d; border: 1px solid #c8d0d7; border-radius: 4px; padding: 8px; margin: 6px 0; }
 .quick-input, .quick-question { display: flex; flex-direction: column; align-items: stretch; margin: 10px 0; }
 .quick-input > button, .quick-question > button { align-self: flex-end; background: #13675a; color: white; border-color: #13675a; }
@@ -177,6 +179,8 @@ select { min-height: 34px; border: 1px solid #d4dcd5; border-radius: 4px; backgr
 .field input::placeholder { color: #99a09b; }
 .clear-key { margin-top: -8px; margin-bottom: 20px; }
 .request-options { border-top: 1px solid var(--tl-border); padding-top: 14px; }
+.model-discovery { margin-bottom: 20px; }
+.model-discovery p { margin: 8px 0 0; font-size: 12px; line-height: 1.7; }
 .request-options summary { font-size: 12px; cursor: pointer; color: var(--tl-fg-muted); margin-bottom: 16px; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .provider-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }

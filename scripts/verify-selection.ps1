@@ -7,6 +7,18 @@ using System;
 using System.Runtime.InteropServices;
 public static class FixtureFocus {
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, IntPtr processId);
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] static extern bool AttachThreadInput(uint attach, uint attachTo, bool join);
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
+
+    public static void Activate(IntPtr window) {
+        uint current = GetCurrentThreadId();
+        uint foreground = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+        bool attached = foreground != 0 && foreground != current && AttachThreadInput(current, foreground, true);
+        try { SetForegroundWindow(window); }
+        finally { if (attached) AttachThreadInput(current, foreground, false); }
+    }
 }
 '@
 $form = [System.Windows.Forms.Form]::new()
@@ -24,20 +36,21 @@ $timer = [System.Windows.Forms.Timer]::new()
 $timer.Interval = 300
 $timer.Add_Tick({
   try {
-    if (([DateTime]::UtcNow - $state.started).TotalSeconds -gt 20) { throw "Native selection test timed out at stage $($state.stage); desktopAvailable=$([FixtureFocus]::GetForegroundWindow() -ne [IntPtr]::Zero)." }
+    if (([DateTime]::UtcNow - $state.started).TotalSeconds -gt 20) { throw "Native selection test timed out at stage $($state.stage); desktopAvailable=$([FixtureFocus]::GetForegroundWindow() -ne [IntPtr]::Zero); foreground=$([FixtureFocus]::GetForegroundWindow()); fixture=$($form.Handle); selectedLength=$($box.SelectionLength)." }
     if ($state.stage -eq 0) {
-      $form.Activate()
+      [FixtureFocus]::Activate($form.Handle)
       $box.Focus() | Out-Null
       $box.Select(0, 8)
       $state.stage = -1
     } elseif ($state.stage -eq -1) {
       if ([FixtureFocus]::GetForegroundWindow() -ne $form.Handle) {
-        $form.Activate()
+        [FixtureFocus]::Activate($form.Handle)
         return
       }
       $box.Focus() | Out-Null
       $box.Select(0, 8)
       if ($TriggerHotkey -or $HoldSelection) {
+        [Console]::WriteLine("Selection fixture ready; hold=$HoldSelection; focused=$($box.Focused); selectedLength=$($box.SelectionLength).")
         if ($TriggerHotkey) { [System.Windows.Forms.SendKeys]::SendWait('^+ ') }
         $state.stage = 99
         $state.started = [DateTime]::UtcNow
@@ -80,6 +93,7 @@ $timer.Add_Tick({
       $timer.Stop()
       $form.Close()
     } elseif ($state.stage -eq 99 -and ([DateTime]::UtcNow - $state.started).TotalSeconds -gt 10) {
+      [Console]::WriteLine("Selection fixture completed; foreground=$([FixtureFocus]::GetForegroundWindow() -eq $form.Handle); focused=$($box.Focused); selectedLength=$($box.SelectionLength).")
       $timer.Stop()
       $form.Close()
     }

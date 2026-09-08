@@ -9,6 +9,19 @@
 
 export type ProviderProtocol = 'openai' | 'anthropic' | 'gemini'
 
+export interface ProviderModelsRequest {
+  id?: string
+  protocol: ProviderProtocol
+  baseUrl: string
+  apiKey: string
+}
+
+export interface ProviderModelsResult {
+  models: Array<{ id: string; name?: string }>
+  /** 保存配置时使用此地址，确保模型发现与实际调用使用同一基础路径。 */
+  baseUrl: string
+}
+
 /** 需要 LLM 能力的功能点，用于功能级路由（FR-7.3） */
 export type FeatureKey =
   | 'termBrief' // 术语简释，建议绑便宜快模型

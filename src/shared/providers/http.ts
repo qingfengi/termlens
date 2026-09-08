@@ -114,7 +114,9 @@ export async function requestWithRetry(opts: FetchOptions): Promise<Response> {
   }
 
   const detail = lastError instanceof Error ? lastError.message : String(lastError)
-  throw new ProviderError(`请求失败（已重试 ${maxRetries} 次）：${detail}`)
+  throw new ProviderError(`请求失败（已重试 ${maxRetries} 次）：${detail}`,
+    lastError instanceof ProviderError ? lastError.status : undefined,
+    lastError instanceof ProviderError ? lastError.retryable : false)
 }
 
 function backoffMs(attempt: number): number {

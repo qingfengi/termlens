@@ -4,6 +4,7 @@ import { GeminiProvider } from './gemini'
 import { OpenAICompatibleProvider } from './openai-compatible'
 
 export { ProviderError, extractJson } from './http'
+export { listProviderModels, normalizeProviderBaseUrl } from './models'
 export { AnthropicProvider, GeminiProvider, OpenAICompatibleProvider }
 
 /** 按协议实例化对应适配器（FR-7.1） */

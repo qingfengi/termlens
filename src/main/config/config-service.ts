@@ -8,6 +8,7 @@ import {
   type AppSettingsParsed
 } from '@shared/config/schema'
 import type { ProviderConfig } from '@shared/types/provider'
+import { normalizeProviderBaseUrl } from '@shared/providers/models'
 import { SecureStore, secretKeys } from './secure-store'
 
 /**
@@ -90,6 +91,17 @@ export class ConfigService extends EventEmitter {
     return this.settings.providers.find((p) => p.id === id)
   }
 
+  /** 隐藏密钥仅能继续用于原服务；更换地址或协议时须重新输入。 */
+  resolveProviderApiKey(input: Pick<ProviderConfig, 'protocol' | 'baseUrl' | 'apiKey'> & { id?: string }): string {
+    if (input.apiKey !== MASKED) return input.apiKey
+    const saved = input.id ? this.getProvider(input.id) : undefined
+    if (!saved) throw new Error('找不到原服务密钥，请重新输入密钥。')
+    if (saved.protocol !== input.protocol || normalizeProviderBaseUrl(saved.baseUrl, saved.protocol) !== normalizeProviderBaseUrl(input.baseUrl, input.protocol)) {
+      throw new Error('服务地址或协议已更改，请重新输入密钥。')
+    }
+    return saved.apiKey
+  }
+
   /** 按功能路由取 Provider（FR-7.3）；未绑定时回退到第一个可用 Provider */
   resolveProviderFor(feature: string): ProviderConfig | undefined {
     const boundId = this.settings.featureBindings[feature as keyof AppSettingsParsed['featureBindings']]
@@ -107,7 +119,7 @@ export class ConfigService extends EventEmitter {
     // 掩码回写保护：UI 传回掩码说明用户没改这个字段
     for (const provider of merged.providers ?? []) {
       if (provider.apiKey === MASKED) {
-        provider.apiKey = this.secure.get(secretKeys.providerApiKey(provider.id))
+        provider.apiKey = this.resolveProviderApiKey(provider)
       }
     }
     if (merged.sync.secret === MASKED) merged.sync.secret = this.secure.get(secretKeys.syncSecret())
@@ -132,8 +144,7 @@ export class ConfigService extends EventEmitter {
     const index = providers.findIndex((p) => p.id === config.id)
     const resolved: ProviderConfig = {
       ...config,
-      apiKey:
-        config.apiKey === MASKED ? this.secure.get(secretKeys.providerApiKey(config.id)) : config.apiKey
+      apiKey: this.resolveProviderApiKey(config)
     }
     if (index === -1) providers.push(resolved)
     else providers[index] = resolved

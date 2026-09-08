@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { SecureStore, secretKeys } from '../../src/main/config/secure-store'
-import { ConfigService } from '../../src/main/config/config-service'
+import { ConfigService, MASKED } from '../../src/main/config/config-service'
 import { providerConfigSchema } from '../../src/shared/config/schema'
 
 const encryption = vi.hoisted(() => ({ enabled: true, calls: 0, failAt: 0 }))
@@ -46,6 +46,28 @@ beforeEach(() => {
 afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 describe('secret and input boundaries', () => {
+  it('resolves masked credentials only for the same normalized destination and protocol', () => {
+    const config = new ConfigService(join(folder, 'settings.json'), new SecureStore(join(folder, 'secrets.dat')))
+    const provider = { id: 'test', name: 'Test', protocol: 'openai' as const, baseUrl: 'https://example.test/v1', apiKey: 'test-only-secret', model: 'model', timeoutMs: 1000, maxRetries: 0 }
+    config.upsertProvider(provider)
+    expect(config.resolveProviderApiKey({ ...provider, baseUrl: 'https://EXAMPLE.test/', apiKey: MASKED })).toBe('test-only-secret')
+    for (const change of [
+      { baseUrl: 'https://other.test/v1' }, { baseUrl: 'https://example.test:8443/v1' },
+      { baseUrl: 'https://example.test/proxy/v1' }, { protocol: 'anthropic' as const }
+    ]) {
+      const changed = { ...provider, ...change, apiKey: MASKED }
+      expect(() => config.resolveProviderApiKey(changed)).toThrow('重新输入密钥')
+      expect(() => config.upsertProvider(changed)).toThrow('重新输入密钥')
+      expect(() => config.update({ providers: [changed] })).toThrow('重新输入密钥')
+      expect(config.getProvider('test')).toEqual(provider)
+    }
+    expect(() => config.resolveProviderApiKey({ ...provider, id: undefined, apiKey: MASKED })).toThrow('找不到')
+    expect(() => config.resolveProviderApiKey({ ...provider, id: 'missing', apiKey: MASKED })).toThrow('找不到')
+    config.upsertProvider({ ...provider, baseUrl: 'https://other.test/v1', apiKey: 'test-reentered-key' })
+    expect(config.getProvider('test')?.apiKey).toBe('test-reentered-key')
+    expect(config.getProvider('test')?.baseUrl).toBe('https://other.test/v1')
+  })
+
   it('refuses to persist a secret without platform encryption', () => {
     encryption.enabled = false
     const path = join(folder, 'secrets.dat')

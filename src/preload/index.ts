@@ -17,7 +17,7 @@ const invokeMap = <T extends Record<string, string>>(map: T) =>
   ) as { [K in keyof T]: (...args: unknown[]) => Promise<unknown> }
 
 const enabled: Array<keyof TermLensApi> = [
-  'configGet', 'configUpdate', 'providerList', 'providerUpsert', 'providerRemove', 'providerTest',
+  'configGet', 'configUpdate', 'providerList', 'providerUpsert', 'providerRemove', 'providerTest', 'providerModels',
   'termDetect', 'termBrief', 'termDetail', 'termFollowup', 'termThread', 'termHistory', 'termCustomUpsert',
   'readerList', 'readerSave', 'readerDelete', 'windowMinimize', 'windowClose',
   'selectionGet', 'selectionConfigure', 'selectionOpenManager', 'selectionHide'

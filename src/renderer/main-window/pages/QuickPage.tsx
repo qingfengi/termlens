@@ -32,6 +32,7 @@ export function QuickPage(): JSX.Element {
       void api().selectionGet().then((selection) => {
         if (disposed || !selection.id || selection.id === lastSelection.current) return
         lastSelection.current = selection.id
+        if (!selection.text) { if (selection.error) setError(selection.error); return }
         if (latest.current.busy || latest.current.question.trim()) { setQueued(selection); return }
         void accept(selection)
       }).catch((failure) => { if (!disposed) setError(errorText(failure)) })
@@ -123,7 +124,7 @@ export function QuickPage(): JSX.Element {
 
   return (
     <div className="quick-shell">
-      <header className="quick-header"><strong>TermLens</strong><div><button onClick={() => void api().selectionOpenManager()}>记录与设置</button><button onClick={() => void api().selectionHide()}>收起</button></div></header>
+      <header className="quick-header"><strong>TermLens</strong><div><button onClick={() => void api().selectionOpenManager()}>记录与设置</button><button className="quick-close" type="button" aria-label="关闭浮窗" title="关闭浮窗" onClick={() => void api().selectionHide()}><span aria-hidden="true">×</span></button></div></header>
       <div className="quick-controls">
         <label><input type="checkbox" checked={automatic} onChange={(event) => void toggleAutomatic(event.target.checked)} />选中即解释</label>
         <label><input type="checkbox" checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />AI 分词</label>

@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { AppKernel } from './app-kernel'
 import { PUBLIC_CHANNELS } from '@shared/ipc/channels'
-import { appSettingsSchema, providerConfigSchema } from '@shared/config/schema'
-import { createChatProvider } from '@shared/providers'
+import { appSettingsSchema, providerConfigSchema, providerModelsRequestSchema } from '@shared/config/schema'
+import { createChatProvider, listProviderModels } from '@shared/providers'
 import { termSchema } from '../terms/term-service'
 
 const idSchema = z.string().min(1).max(160)
@@ -20,6 +20,7 @@ export function registerIpc(kernel: AppKernel): void {
       if (!parsed.success) throw new Error('输入格式不正确或超出允许长度。')
       try { return await action(parsed.data) } catch (error) {
         let message = error instanceof Error ? error.message : '操作失败，请重试。'
+        if (typeof parsed.data?.apiKey === 'string' && parsed.data.apiKey) message = message.split(parsed.data.apiKey).join('[已隐藏]')
         for (const provider of config.getRaw().providers) if (provider.apiKey) message = message.split(provider.apiKey).join('[已隐藏]')
         throw new Error(message.slice(0, 1200))
       }
@@ -30,6 +31,7 @@ export function registerIpc(kernel: AppKernel): void {
   handle('providerList', z.undefined(), () => config.getSafe().providers)
   handle('providerUpsert', providerConfigSchema, (provider) => config.upsertProvider(provider))
   handle('providerRemove', idSchema, (id) => config.removeProvider(id))
+  handle('providerModels', providerModelsRequestSchema, (input) => listProviderModels({ ...input, apiKey: config.resolveProviderApiKey(input) }))
   handle('providerTest', idSchema, async (id) => {
     const provider = config.getProvider(id)
     if (!provider) return { ok: false, error: '请先保存服务配置。' }

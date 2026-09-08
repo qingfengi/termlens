@@ -25,6 +25,12 @@ export const providerConfigSchema = z.object({
   supportsVision: z.boolean().optional()
 })
 
+export const providerModelsRequestSchema = providerConfigSchema
+  .pick({ id: true, protocol: true, baseUrl: true, apiKey: true })
+  .partial({ id: true })
+  .extend({ baseUrl: z.string().trim().pipe(providerConfigSchema.shape.baseUrl) })
+  .strict()
+
 export const appearanceSchema = z.object({
   theme: z.enum(['system', 'light', 'dark', 'high-contrast']).default('system'),
   colorBlindSafe: z.boolean().default(false),

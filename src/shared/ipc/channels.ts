@@ -11,6 +11,7 @@ export const PUBLIC_CHANNELS = {
   configGet: 'config:get',
   configUpdate: 'config:update',
   providerTest: 'provider:test',
+  providerModels: 'provider:models',
   providerList: 'provider:list',
   providerUpsert: 'provider:upsert',
   providerRemove: 'provider:remove',

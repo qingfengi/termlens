@@ -1,5 +1,5 @@
 import type { AppSettingsParsed } from '../config/schema'
-import type { ProviderConfig, TestResult } from '../types/provider'
+import type { ProviderConfig, ProviderModelsRequest, ProviderModelsResult, TestResult } from '../types/provider'
 import type { ConceptThread, Explanation, ExplanationLevel, Term } from '../types/term'
 
 export interface ReaderDocument {
@@ -36,6 +36,7 @@ export interface TermLensApi {
   providerUpsert(provider: ProviderConfig): Promise<AppSettingsParsed>
   providerRemove(id: string): Promise<AppSettingsParsed>
   providerTest(id: string): Promise<TestResult>
+  providerModels(request: ProviderModelsRequest): Promise<ProviderModelsResult>
   termDetect(request: { text: string; useAi?: boolean }): Promise<TermAnalysis>
   termBrief(term: Term): Promise<Explanation>
   termDetail(request: OpenTermRequest): Promise<{ explanation: Explanation; thread: ConceptThread }>
