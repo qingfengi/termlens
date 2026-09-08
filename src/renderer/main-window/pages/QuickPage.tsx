@@ -179,12 +179,14 @@ export function QuickPage(): JSX.Element {
       <header className="quick-header"><strong>TermLens</strong><div><button onClick={() => void api().selectionOpenManager()}>记录与设置</button><button className="quick-close" type="button" aria-label="关闭浮窗" title="关闭浮窗" onClick={() => void api().selectionHide()}><span aria-hidden="true">×</span></button></div></header>
       <div className="quick-controls">
         <button type="button" onClick={() => void api().sourceOpenReader().catch((error) => setError(errorText(error)))}>资料阅读</button>
-        <label><input type="checkbox" checked={paused} onChange={(event) => void api().sourcePause({ paused: event.target.checked }).then((status) => setPaused(status.paused)).catch((error) => setError(errorText(error)))} />暂停助手</label>
         <label><input type="checkbox" checked={automatic} onChange={(event) => void toggleAutomatic(event.target.checked)} />选中即解释</label>
-        <label><input type="checkbox" checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />AI 分词</label>
         <label>选区模式 <select aria-label="选区处理模式" value={selectionMode} onChange={(event) => { const mode = event.target.value as 'explain' | 'tokenize'; setSelectionMode(mode); void api().configUpdate({ term: { selectionMode: mode } }).catch((failure) => setError(errorText(failure))) }}><option value="explain">整段解释</option><option value="tokenize">只分词</option></select></label>
-        <label><input type="checkbox" checked={speedMode} onChange={(event) => { const enabled = event.target.checked; setSpeedMode(enabled); void api().configUpdate({ term: { speedMode: enabled } }).catch((failure) => setError(errorText(failure))) }} />速度模式</label>
-        {speedMode && <label>并发 <input aria-label="术语并发数" type="number" min={1} max={8} value={speedConcurrency} onChange={(event) => { const value = Math.max(1, Math.min(8, Number(event.target.value) || 1)); setSpeedConcurrency(value); void api().configUpdate({ term: { speedConcurrency: value } }).catch((failure) => setError(errorText(failure))) }} /></label>}
+        <details className="quick-advanced"><summary>更多设置</summary><div className="quick-advanced-content">
+          <label><input type="checkbox" checked={paused} onChange={(event) => void api().sourcePause({ paused: event.target.checked }).then((status) => setPaused(status.paused)).catch((error) => setError(errorText(error)))} />暂停助手</label>
+          <label><input type="checkbox" checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />本次启用 AI 分词</label>
+          <label><input type="checkbox" checked={speedMode} onChange={(event) => { const enabled = event.target.checked; setSpeedMode(enabled); void api().configUpdate({ term: { speedMode: enabled } }).catch((failure) => setError(errorText(failure))) }} />速度模式</label>
+          {speedMode && <label>并发 <input aria-label="术语并发数" type="number" min={1} max={8} value={speedConcurrency} onChange={(event) => { const value = Math.max(1, Math.min(8, Number(event.target.value) || 1)); setSpeedConcurrency(value); void api().configUpdate({ term: { speedConcurrency: value } }).catch((failure) => setError(errorText(failure))) }} /></label>}
+        </div></details>
       </div>
       {queued && <div className="quick-queued"><span>有新的选中文字</span><button disabled={busy} onClick={() => void accept(queued)}>打开</button></div>}
       <section className="quick-input">
