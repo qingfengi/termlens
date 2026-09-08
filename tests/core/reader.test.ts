@@ -29,6 +29,11 @@ beforeEach(async () => {
 afterEach(() => { repo.close(); rmSync(folder, { recursive: true, force: true }) })
 
 describe('reader and terminology workflows', () => {
+  it('defaults speed mode to three bounded workers', () => {
+    expect(settings.term.speedMode).toBe(true)
+    expect(settings.term.speedConcurrency).toBe(3)
+  })
+
   it('keeps repeated occurrences, favors the longest term and respects English boundaries', async () => {
     const result = await service().detect('API Key 与 API。mail 不是 AI。机器学习，机器学习。')
     expect(result.terms.map((term) => term.surface)).toEqual(['API Key', 'API', 'AI', '机器学习', '机器学习'])
