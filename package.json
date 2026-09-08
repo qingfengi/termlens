@@ -1,0 +1,54 @@
+{
+  "name": "termlens",
+  "version": "0.1.0",
+  "description": "TermLens - Windows 选词解释、术语阅读与追问记录工具",
+  "type": "module",
+  "main": "out/main/index.js",
+  "author": "TermLens",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:native": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-selection.ps1",
+    "test:browser-selection": "node scripts/verify-browser-selection.mjs",
+    "test:ui": "npm run build && node scripts/verify-ui.mjs",
+    "start": "electron-vite preview",
+    "pack:win": "npm run build && electron-builder --win dir --x64"
+  },
+  "dependencies": {
+    "node-sqlite3-wasm": "0.8.30",
+    "react-router-dom": "^7.18.3",
+    "zod": "3.23.8",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "5.2.0",
+    "autoprefixer": "10.4.20",
+    "electron": "44.2.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "playwright": "^1.62.1",
+    "postcss": "8.5.28",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwindcss": "3.4.13",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.10"
+  },
+  "build": {
+    "appId": "io.github.qingfengi.termlens",
+    "productName": "TermLens",
+    "directories": { "output": "release" },
+    "files": ["out/**/*", "scripts/selected-text.ps1", "package.json"],
+    "asarUnpack": ["scripts/selected-text.ps1", "node_modules/node-sqlite3-wasm/**/*"],
+    "win": { "target": "dir", "signAndEditExecutable": false }
+  }
+}
