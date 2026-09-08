@@ -44,7 +44,7 @@ export interface TermLensApi {
   sourceOpenLocation(request: { id: string; segmentId?: string }): Promise<void>
   sourceOpenReader(): Promise<void>
   configGet(): Promise<AppSettingsParsed>
-  configUpdate(patch: Partial<AppSettingsParsed>): Promise<AppSettingsParsed>
+  configUpdate(patch: Partial<Omit<AppSettingsParsed, 'term'>> & { term?: Partial<AppSettingsParsed['term']> }): Promise<AppSettingsParsed>
   providerList(): Promise<ProviderConfig[]>
   providerUpsert(provider: ProviderConfig): Promise<AppSettingsParsed>
   providerRemove(id: string): Promise<AppSettingsParsed>

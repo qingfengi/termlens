@@ -49,6 +49,7 @@ export const termSettingsSchema = z.object({
   selectionAuto: z.boolean().default(false),
   assistantPaused: z.boolean().default(false),
   selectionHotkey: z.string().max(100).default('Control+Shift+Space')
+  ,maxNestedDepth: z.number().int().min(1).max(20).default(10)
 })
 
 export const transcriptionSettingsSchema = z.object({

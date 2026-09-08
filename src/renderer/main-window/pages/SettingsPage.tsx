@@ -167,6 +167,7 @@ export function SettingsPage(): JSX.Element {
         {notice && <Notice>{notice}</Notice>}
         {config && <>
           <section className="default-provider"><h2>术语默认服务</h2><select aria-label="术语默认服务" value={config.featureBindings.termDetail ?? ''} disabled={Boolean(busy) || config.providers.length === 0} onChange={(event) => void bindProvider(event.target.value)}><option value="">{config.providers.length ? '自动选择首个服务' : '尚未配置 AI 服务'}</option>{config.providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} · {provider.model}</option>)}</select></section>
+          <section className="default-provider"><h2>概念嵌套</h2><label className="field"><span>最大嵌套层数 <small>默认 10，范围 1—20</small></span><input aria-label="最大嵌套层数" type="number" min={1} max={20} step={1} value={config.term.maxNestedDepth} disabled={Boolean(busy)} onChange={(event) => { const value = Math.max(1, Math.min(20, Number(event.target.value))); setConfig({ ...config, term: { ...config.term, maxNestedDepth: value } }); void api().configUpdate({ term: { maxNestedDepth: value } }) }} /></label><p className="muted">AI 生成的相关概念也可以继续展开；达到上限后停止继续请求。</p></section>
           <div className="provider-workspace">
             <section className="provider-list" aria-label="AI 服务列表"><div className="section-heading"><h2>AI 服务</h2><span className="muted">{config.providers.length}</span></div>
               {config.providers.length === 0 && <p className="empty-line">暂无已保存的服务</p>}

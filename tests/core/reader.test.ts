@@ -94,6 +94,16 @@ describe('reader and terminology workflows', () => {
     expect(await repo.listThreads()).toHaveLength(5)
   })
 
+  it('enforces the configured concept nesting limit', async () => {
+    settings.term.maxNestedDepth = 2
+    const firstTerm = (await service().detect('机器学习')).terms[0]
+    const first = await service().open({ term: firstTerm })
+    const secondTerm = (await service().detect('回测')).terms[0]
+    const second = await service().open({ term: secondTerm, parentThreadId: first.thread.threadId })
+    const thirdTerm = { ...firstTerm, id: 'third' }
+    await expect(service().open({ term: thirdTerm, parentThreadId: second.thread.threadId })).rejects.toThrow('嵌套上限')
+  })
+
   it('saves a question before a failing model call and never stores an invented answer', async () => {
     const model = service()
     const term = (await model.detect('概念')).terms[0]

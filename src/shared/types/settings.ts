@@ -41,6 +41,8 @@ export interface TermSettings {
   allowLlmDetection: boolean
   /** 用户忽略的术语，不再标注 */
   ignoredTerms: string[]
+  /** AI 概念递归最大层数，防止无限展开和意外请求 */
+  maxNestedDepth: number
 }
 
 /** 语音转写设置（FR-1） */

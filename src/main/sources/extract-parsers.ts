@@ -149,9 +149,30 @@ function readArchive(bytes: Uint8Array): Record<string, Uint8Array> {
       entries++
       expanded += entry.originalSize
       if (entries > 5000 || expanded > 50 * 1024 * 1024 || entry.originalSize > SOURCE_LIMITS.fileBytes) throw new Error('archive-limit')
-      return /\.xml$|\.rels$/.test(entry.name) && !entry.name.includes('..')
+      return /\.(?:xml|rels|xhtml?|opf|ncx)$/.test(entry.name) && !entry.name.includes('..')
     } })
   } catch { throw new Error('文档压缩内容损坏、已加密或解压后超过安全上限（50 MiB / 5000 项）。') }
+}
+
+function extractEpub(bytes: Uint8Array, context: ExtractionContext): ExtractedSource {
+  const archive = readArchive(bytes)
+  const container = decodeText(archive['META-INF/container.xml'] ?? new Uint8Array())
+  const root = container.match(/full-path\s*=\s*["']([^"']+)["']/i)?.[1]
+  if (!root || !archive[root]) throw new Error('EPUB 缺少目录结构，无法读取。')
+  const opf = decodeText(archive[root])
+  const base = posix.dirname(root)
+  const manifest = new Map<string, string>()
+  for (const match of opf.matchAll(/<item\b[^>]*\bid\s*=\s*["']([^"']+)["'][^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi)) manifest.set(match[1], posix.normalize(posix.join(base, decodeURIComponent(match[2]))))
+  const spine = [...opf.matchAll(/<itemref\b[^>]*\bidref\s*=\s*["']([^"']+)["'][^>]*>/gi)].map((match) => manifest.get(match[1])).filter((name): name is string => Boolean(name))
+  if (!spine.length) throw new Error('EPUB 没有可读取的章节。')
+  const segments = new Segments()
+  const warnings = ['已按电子书目录读取章节；图片、脚注布局、字体和 DRM 保护内容未转换为文字。']
+  spine.forEach((name, index) => {
+    const html = decodeText(archive[name] ?? new Uint8Array())
+    const chapter = extractHtml(html, { ...context, title: `第 ${index + 1} 章` })
+    chapter.segments.forEach((segment) => segments.add(`第 ${index + 1} 章 · ${segment.label}`, segment.text))
+  })
+  return segments.result({ ...context, title: context.title.replace(/\.epub$/i, '') }, warnings, '已读取 EPUB 目录中可获取的章节正文。')
 }
 
 function xml(archive: Record<string, Uint8Array>, name: string): OrderedNode[] {
@@ -284,8 +305,9 @@ export async function extractBytes(bytes: Uint8Array, format: string, location: 
   if (bytes.byteLength > SOURCE_LIMITS.fileBytes) throw new Error('文件超过 25 MiB 读取上限。')
   const context = { title: options.title ?? basename(location), location, format, kind: options.kind }
   if (format === 'pdf') return extractPdf(bytes, context)
+  if (format === 'epub') return extractEpub(bytes, context)
   if (['docx', 'xlsx', 'pptx'].includes(format)) return extractOffice(bytes, context)
-  if (!['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt'].includes(format)) throw new Error('暂不支持此文件格式。支持 TXT、Markdown、CSV、TSV、HTML、SRT、VTT、DOCX、XLSX、PPTX 和 PDF。')
+  if (!['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt'].includes(format)) throw new Error('暂不支持此文件格式。支持 TXT、Markdown、CSV、TSV、HTML、SRT、VTT、DOCX、XLSX、PPTX、PDF 和 EPUB。')
   const text = decodeText(bytes, options.charset)
   if (format === 'html' || format === 'htm') return extractHtml(text, context)
   if (format === 'srt' || format === 'vtt') return extractSubtitles(text, context)

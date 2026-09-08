@@ -18,6 +18,7 @@ export function QuickPage(): JSX.Element {
   const [hotkey, setHotkey] = useState('Ctrl + Shift + Space')
   const [queued, setQueued] = useState<SelectionSnapshot>()
   const [paused, setPaused] = useState(false)
+  const [maxNestedDepth, setMaxNestedDepth] = useState(10)
   const lastSelection = useRef(0)
   const sequence = useRef(0)
   const latest = useRef({ busy, question, useAi })
@@ -27,7 +28,7 @@ export function QuickPage(): JSX.Element {
   useEffect(() => {
     let disposed = false
     void api().configGet().then((config) => {
-      if (!disposed) { setAutomatic(config.term.selectionAuto); setHotkey(config.term.selectionHotkey.replace('Control', 'Ctrl').replaceAll('+', ' + ')) }
+      if (!disposed) { setAutomatic(config.term.selectionAuto); setHotkey(config.term.selectionHotkey.replace('Control', 'Ctrl').replaceAll('+', ' + ')); setMaxNestedDepth(config.term.maxNestedDepth) }
     }).catch((failure) => { if (!disposed) setError(errorText(failure)) })
     const timer = setInterval(() => {
       void api().sourceStatus().then((status) => { if (!disposed) setPaused(status.paused) }).catch(() => {})
@@ -78,6 +79,7 @@ export function QuickPage(): JSX.Element {
   }
 
   async function open(term: Term, parents: Frame[] = []): Promise<void> {
+    if (parents.length + 1 > maxNestedDepth) { setError(`已达到概念嵌套上限（${maxNestedDepth} 层），请返回上一级。`); return }
     const run = ++sequence.current
     setBusy(true)
     setError('')
@@ -148,7 +150,7 @@ export function QuickPage(): JSX.Element {
         <p>{active.explanation.detail?.definition ?? active.explanation.brief}</p>
         {active.explanation.detail?.background && <p>{active.explanation.detail.background}</p>}
         {!!active.explanation.detail?.keyPoints.length && <ul>{active.explanation.detail.keyPoints.map((point, index) => <li key={index}>{point}</li>)}</ul>}
-        <div className="quick-related">{active.explanation.detail?.related.map((canonical) => <button disabled={busy} key={canonical} onClick={() => {
+        <div className="quick-related">{active.explanation.detail?.related.map((canonical) => <button disabled={busy || frames.length >= maxNestedDepth} title={frames.length >= maxNestedDepth ? `已达到 ${maxNestedDepth} 层上限` : undefined} key={canonical} onClick={() => {
           void api().termDetect({ text: canonical }).then((result) => open(result.terms.find((term) => term.canonical === canonical) ?? { id: `related_${Date.now()}`, canonical, surface: canonical, domain: 'general', range: [0, canonical.length], confidence: 1, source: 'llm' }, frames)).catch((failure) => setError(errorText(failure)))
         }}>{canonical}</button>)}</div>
         <div className="quick-messages" aria-live="polite">{active.thread.messages.map((message) => <article key={message.id} className={message.role}><strong>{message.role === 'user' ? '我的追问' : '回答'}</strong><p>{message.content}</p></article>)}</div>

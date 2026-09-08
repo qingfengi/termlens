@@ -18,6 +18,17 @@ describe('source text and subtitle extraction', () => {
     expect(normalizeLocalFileLocation('"D:\\资料\\课程.pdf"')).toBe('D:\\资料\\课程.pdf')
     expect(normalizeLocalFileLocation('file:///D:/资料/课程.pdf')).toBe('D:\\资料\\课程.pdf')
   })
+  it('extracts EPUB chapters in spine order', async () => {
+    const epub = office({
+      'META-INF/container.xml': '<?xml version="1.0"?><container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>',
+      'OEBPS/content.opf': '<package><manifest><item id="c1" href="chapter1.xhtml"/><item id="c2" href="chapter2.xhtml"/></manifest><spine><itemref idref="c1"/><itemref idref="c2"/></spine></package>',
+      'OEBPS/chapter1.xhtml': '<html><body><h1>第一章</h1><p>机会成本</p></body></html>',
+      'OEBPS/chapter2.xhtml': '<html><body><h1>第二章</h1><p>边际效用</p></body></html>'
+    })
+    const result = await extractBytes(epub, 'epub', '/book.epub')
+    expect(result.segments.map(({ text }) => text)).toEqual(['第一章', '机会成本', '第二章', '边际效用'])
+    expect(result.coverage).toBe('partial')
+  })
   it('preserves paragraphs and splits large segments without exceeding aggregate bounds', async () => {
     const result = await extractBytes(text('甲乙\n\n第二段\n第三行'), 'txt', '/test.txt')
     expect(result.segments.map(({ label, text }) => [label, text])).toEqual([['段落 1', '甲乙'], ['段落 2', '第二段\n第三行']])

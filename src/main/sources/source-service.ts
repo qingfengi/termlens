@@ -89,7 +89,10 @@ export class SourceService {
   import(request: SourceRequest, windowExtractor?: (signal: AbortSignal) => Promise<ExtractedSource>): SourceTask {
     let task: SourceTask
     task = this.enqueue('read', request.kind === 'window' ? '读取当前窗口' : '读取资料', async (signal) => {
-      const extracted = request.kind === 'window' && windowExtractor ? await windowExtractor(signal) : await this.extractor(request, signal, (progress) => {
+      const extracted = request.kind === 'window' && windowExtractor ? await Promise.race([
+        windowExtractor(signal),
+        new Promise<ExtractedSource>((_, reject) => setTimeout(() => reject(new Error('当前窗口读取超时，已自动停止。请切到正文后重试，或直接导入文件。')), 15000))
+      ]) : await this.extractor(request, signal, (progress) => {
         const live = this.jobs.find((job) => job.task.id === task.id)?.task
         if (live) live.progress = progress
       })

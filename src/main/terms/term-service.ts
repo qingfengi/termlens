@@ -143,6 +143,8 @@ export class TermService {
     if (existing) return { explanation, thread: existing }
     const parent = request.parentThreadId ? await this.repo.getThread(request.parentThreadId) : undefined
     if (request.parentThreadId && !parent) throw new Error('上级概念记录不存在，请重新打开。')
+    const maxDepth = this.config.getRaw().term.maxNestedDepth
+    if (parent && parent.path.length >= maxDepth) throw new Error(`已达到概念嵌套上限（${maxDepth} 层），可以返回上一级继续学习。`)
     const thread: ConceptThread = {
       threadId: genId.thread(), parentThreadId: parent?.threadId, path: [...(parent?.path ?? []), term],
       messages: [], createdAt: Date.now()

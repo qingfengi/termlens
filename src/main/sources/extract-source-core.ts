@@ -36,7 +36,7 @@ export async function extractSourceCore(request: SourceRequest, signal: AbortSig
     if (!isAbsolute(location)) throw new Error('请选择绝对路径的本地文件。示例：D:\\资料\\课程.pdf')
     if (/^(?:\\\\|\/\/|\\\\\?\\)/.test(location)) throw new Error('暂不读取网络共享或设备路径，请先保存为本地文件。')
     const format = extname(location).slice(1).toLowerCase()
-    if (!['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt', 'docx', 'xlsx', 'pptx', 'pdf'].includes(format)) throw new Error('暂不支持此文件格式。')
+    if (!['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt', 'docx', 'xlsx', 'pptx', 'pdf', 'epub'].includes(format)) throw new Error('暂不支持此文件格式。')
     onProgress('正在读取本地文件…')
     const handle = await open(location, 'r').catch(() => { throw new Error('文件无法打开，可能已移动或没有读取权限。') })
     let bytes: Uint8Array

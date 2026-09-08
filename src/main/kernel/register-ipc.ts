@@ -29,7 +29,7 @@ export function registerIpc(kernel: AppKernel): void {
   }
   handle('configGet', z.undefined(), () => config.getSafe())
   handle('sourcePickFile', z.undefined(), async () => {
-    const result = await dialog.showOpenDialog({ title: '选择阅读资料', properties: ['openFile'], filters: [{ name: '阅读资料', extensions: ['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt', 'docx', 'xlsx', 'pptx', 'pdf'] }] })
+    const result = await dialog.showOpenDialog({ title: '选择阅读资料', properties: ['openFile'], filters: [{ name: '阅读资料', extensions: ['txt', 'md', 'csv', 'tsv', 'html', 'htm', 'srt', 'vtt', 'docx', 'xlsx', 'pptx', 'pdf', 'epub'] }] })
     return result.canceled ? null : result.filePaths[0] ?? null
   })
   handle('sourceImport', z.object({ kind: z.enum(['file', 'url', 'window']), location: z.string().trim().min(1).max(4000).optional() }).strict(), (input) => {
