@@ -11,6 +11,10 @@
 .quick-advanced summary { cursor: pointer; color: var(--muted); user-select: none; }
 .quick-advanced-content { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 8px; }
 .quick-advanced-content input[type='number'] { width: 4.5rem; }
+.term-explanation { margin: 12px 0 18px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.term-explanation h3 { margin: 0 0 8px; }
+.term-explanation h4 { margin: 12px 0 4px; }
+.term-explanation p { white-space: pre-wrap; }
 .quick-shell button { border: 1px solid #c8d0d7; background: white; color: #263b42; padding: 6px 9px; border-radius: 4px; cursor: pointer; }
 .quick-shell button:disabled { cursor: default; opacity: .55; }
 .quick-shell .quick-close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; padding: 0; font-size: 28px; font-weight: 600; line-height: 1; }

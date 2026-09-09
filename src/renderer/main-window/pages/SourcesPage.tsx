@@ -12,6 +12,7 @@ export function SourcesPage(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [useAi, setUseAi] = useState(false)
   const [segmentId, setSegmentId] = useState('')
+  const [termExplanation, setTermExplanation] = useState<{ term: string; explanation?: import('@shared/types/term').Explanation; error?: string; loading: boolean }>()
   const currentId = useRef<string>()
   const seen = useRef('')
   const selectionVersion = useRef(0)
@@ -95,13 +96,27 @@ export function SourcesPage(): JSX.Element {
     if (!term) setQuestion('')
   }
 
+  async function explainTerm(term: string, segment: SourceSegment): Promise<void> {
+    const request = ++selectionVersion.current
+    setSegmentId(segment.id)
+    setTermExplanation({ term, loading: true })
+    try {
+      const found = await api().termDetect({ text: term })
+      const item = found.terms[0] ?? { id: `source_${Date.now()}`, surface: term, canonical: term, domain: 'general', range: [0, term.length] as [number, number], confidence: 1, source: 'llm' as const }
+      const explanation = await api().termBrief(item)
+      if (request === selectionVersion.current) setTermExplanation({ term, explanation, loading: false })
+    } catch (cause) {
+      if (request === selectionVersion.current) setTermExplanation({ term, loading: false, error: errorText(cause) })
+    }
+  }
+
   function marked(segment: SourceSegment): React.ReactNode {
     let offset = 0
     const content: React.ReactNode[] = []
     for (const term of segment.terms ?? []) {
       const [start, end] = term.range
       if (start < offset || end > segment.text.length || segment.text.slice(start, end) !== term.surface) continue
-      content.push(<Fragment key={`${term.id}-${start}`}>{segment.text.slice(offset, start)}<button className="term-mark" disabled={busy || sourceBusy || status.paused} onClick={() => void run(() => ask(term.surface, segment))}>{term.surface}</button></Fragment>)
+      content.push(<Fragment key={`${term.id}-${start}`}>{segment.text.slice(offset, start)}<button className="term-mark" disabled={busy || status.paused} onClick={() => void explainTerm(term.surface, segment)}>{term.surface}</button></Fragment>)
       offset = end
     }
     content.push(segment.text.slice(offset))
@@ -136,7 +151,7 @@ export function SourcesPage(): JSX.Element {
         <p className="muted">AI 已分析 {source.analyzedSegmentIds.length}/{source.segments.length} 段。{useAi ? '识别会分段发送给已配置的模型，按服务计费；可随时停止，已完成段落保留。' : '本地识别无需发送原文；点击术语解释或追问时，会把问题和相关片段发给已配置的模型。'}</p>
         <p className="muted">为保持阅读流畅，每段最多标出 100 处术语，每份资料最多 2,000 处；其余文字仍可在提问框中询问。</p>
         <div className="source-content-grid"><div className="source-segments" aria-label="资料正文">{source.segments.map((segment) => <section id={`source-segment-${segment.id}`} key={segment.id} className={`source-segment${segmentId === segment.id ? ' selected' : ''}`}><div className="section-heading"><h3>{segment.label}</h3><button className="text-button" aria-pressed={segmentId === segment.id} onClick={() => setSegmentId(segmentId === segment.id ? '' : segment.id)}>围绕此段提问</button></div><p>{marked(segment)}</p>{segment.startSeconds !== undefined && source.kind === 'video' && <button className="text-button" onClick={() => void run(() => api().sourceOpenLocation({ id: source.id, segmentId: segment.id }))}>跳到视频此处</button>}</section>)}</div>
-          <aside className="source-conversation" aria-label="资料问答"><h2>结合原文追问</h2><p className="muted">从整份已提取资料中查找相关片段回答。资料未包含的内容会明确说明。</p>{source.messages.map((message) => <article className={`message message-${message.role}`} key={message.id}><strong>{message.role === 'user' ? '我的问题' : '回答'}</strong><p>{message.content}</p>{message.error && <Notice error>{message.error}</Notice>}<div className="source-citations">{message.citations.map((citation) => <button key={citation.segmentId} className="text-button" onClick={() => jump(citation.segmentId)}>{citation.label}</button>)}</div></article>)}
+          <aside className="source-conversation" aria-label="资料问答"><h2>术语解释</h2><p className="muted">点击正文中的术语，先查看定义和例子；需要结合原文时再追问。</p>{termExplanation && <section className="term-explanation" aria-live="polite"><h3>{termExplanation.term}</h3>{termExplanation.loading ? <p role="status">正在准备解释…</p> : termExplanation.error ? <Notice error>{termExplanation.error}</Notice> : termExplanation.explanation && <><p>{termExplanation.explanation.brief}</p><h4>定义</h4><p>{termExplanation.explanation.detail?.definition ?? termExplanation.explanation.brief}</p>{termExplanation.explanation.detail?.background && <><h4>背景</h4><p>{termExplanation.explanation.detail.background}</p></>}{termExplanation.explanation.detail?.keyPoints.length ? <><h4>例子与要点</h4><ul>{termExplanation.explanation.detail.keyPoints.map((point, index) => <li key={index}>{point}</li>)}</ul></> : null}<button type="button" className="button-secondary" onClick={() => void run(() => ask(termExplanation.term, source.segments.find((item) => item.id === segmentId)))}>结合原文追问</button></>}</section>}{source.messages.map((message) => <article className={`message message-${message.role}`} key={message.id}><strong>{message.role === 'user' ? '我的问题' : '回答'}</strong><p>{message.content}</p>{message.error && <Notice error>{message.error}</Notice>}<div className="source-citations">{message.citations.map((citation) => <button key={citation.segmentId} className="text-button" onClick={() => jump(citation.segmentId)}>{citation.label}</button>)}</div></article>)}
             <form className="question-form" onSubmit={(event) => { event.preventDefault(); void run(() => ask()) }}><label htmlFor="source-question">{segmentId ? `当前依据：${source.segments.find((segment) => segment.id === segmentId)?.label}` : '向这份资料提问'}</label><textarea id="source-question" maxLength={4000} value={question} disabled={busy || sourceBusy} onChange={(event) => setQuestion(event.target.value)} placeholder="这个概念是什么意思？它和前面一章有什么关系？" /><div className="question-actions"><button type="submit" className="button-primary" disabled={busy || sourceBusy || status.paused || !question.trim()}>发送问题</button>{segmentId && <button type="button" className="text-button" onClick={() => setSegmentId('')}>取消指定段落</button>}</div></form>
           </aside></div>
       </div> : <div className="source-welcome"><h2>原文、概念和问题放在一起</h2><p>后台任务完成后，在这里打开资料。读取范围会明确显示，不会把未获取的页面当作已经读完。</p></div>}
