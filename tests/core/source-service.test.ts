@@ -5,6 +5,7 @@ import { SourceService, selectExcerpts } from '../../src/main/sources/source-ser
 import { SqliteRepository } from '../../src/main/data/sqlite-repository'
 import type { ChatProvider, ProviderConfig } from '../../src/shared/types/provider'
 import type { ExtractedSource, SourceDocument, SourceTask } from '../../src/shared/types/source'
+import type { Term } from '../../src/shared/types/term'
 vi.mock('electron', () => ({ app: { getPath: () => '.' } }))
 
 let directory: string
@@ -13,7 +14,7 @@ let services: SourceService[]
 const extracted: ExtractedSource = { title: '资料', kind: 'file', location: 'D:/fixture.txt', format: 'txt', coverage: 'complete', coverageNote: '文本已提取', warnings: [], segments: [{ id: 'p1', label: '段落1', text: '机器学习需要样本。' }, { id: 'p2', label: '段落2', text: '差分隐私限制单条数据的影响。' }] }
 const provider: ProviderConfig = { id: 'test', name: 'test', model: 'mock', protocol: 'openai', baseUrl: 'https://example.test/v1', apiKey: 'fixture-key', timeoutMs: 1000, maxRetries: 0 }
 
-function service(options: { extract?: () => Promise<ExtractedSource>; chat?: ChatProvider['chat']; detect?: (text: string) => Promise<{ terms: [] }> } = {}): SourceService {
+function service(options: { extract?: () => Promise<ExtractedSource>; chat?: ChatProvider['chat']; detect?: (text: string, useAi?: boolean, includeTokens?: boolean) => Promise<{ terms: Term[]; warning?: string }> } = {}): SourceService {
   const instance = new SourceService(repo, { resolveProviderFor: () => provider }, { detect: options.detect ?? (async () => ({ terms: [] })) }, options.extract ?? (async () => structuredClone(extracted)), () => ({ id: 'test', protocol: 'openai', chat: options.chat ?? (async function* () { yield { type: 'delta', text: '{"answer":"根据原文，单条数据影响有限。[p2]","citationIds":["p2"]}' } }), test: async () => ({ ok: true }) }))
   services.push(instance)
   return instance
@@ -120,6 +121,15 @@ describe('background source lifecycle', () => {
     expect((await repo.getSource(source.id))?.analysis).toBe('none')
     const failed = await finished(instance, await instance.ask({ id: source.id, question: '测试' }))
     expect(failed.error).not.toContain(provider.apiKey)
+  })
+
+  it('persists visible warnings when token or display limits are reached', async () => {
+    const token: Term = { id: 'token', surface: '上溢', canonical: '上溢', domain: 'general', range: [0, 2], confidence: 1, source: 'token' }
+    const instance = service({ detect: async () => ({ terms: Array.from({ length: 101 }, (_, index) => ({ ...token, id: `token-${index}`, surface: `词${index}`, canonical: `词${index}`, range: [index * 2, index * 2 + 2] as [number, number] })), warning: '基础分词结果较多，当前最多展示 1000 个可点击词语。' }) })
+    const source = await imported(instance)
+    expect((await finished(instance, await instance.analyze(source.id, false))).state).toBe('complete')
+    expect((await repo.getSource(source.id))?.warnings.join(' ')).toContain('基础分词提示')
+    expect((await repo.getSource(source.id))?.warnings.join(' ')).toContain('术语标注上限')
   })
 })
 

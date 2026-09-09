@@ -14,7 +14,7 @@ export type TriState = 'auto' | 'manual' | 'off'
 export type ExplanationLevel = 'beginner' | 'intermediate' | 'expert'
 
 /** 术语来源，用于三级瀑布可观测性（FR-4.10 / 决策 D6） */
-export type TermSource = 'lexicon' | 'cache' | 'llm'
+export type TermSource = 'lexicon' | 'cache' | 'llm' | 'token'
 
 /** 术语标注视觉样式（FR-4.2） */
 export type TermMarkStyle = 'deepen' | 'outline'

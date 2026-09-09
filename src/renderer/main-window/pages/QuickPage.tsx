@@ -76,7 +76,7 @@ export function QuickPage(): JSX.Element {
     setError('')
     try {
       if (save) await api().readerSave({ title: source.trim().slice(0, 60), text: source })
-      const result = await api().termDetect({ text: source, useAi: latest.current.useAi })
+      const result = await api().termDetect({ text: source, useAi: latest.current.useAi, tokenize: latest.current.selectionMode === 'tokenize' })
       if (run !== sequence.current) return
       setTerms(result.terms)
       if (result.warning) setError(result.warning)
@@ -100,7 +100,7 @@ export function QuickPage(): JSX.Element {
       }
       if (latest.current.selectionMode === 'tokenize' && latest.current.speedMode && result.terms.length > 0) {
         setPhase('prefetching')
-        void prefetchTerms(result.terms, run, latest.current.speedConcurrency)
+        void prefetchTerms(result.terms.filter((term) => term.source !== 'token'), run, latest.current.speedConcurrency)
       } else {
         setPrefetch({ done: 0, total: 0, failed: 0 })
       }
@@ -201,7 +201,7 @@ export function QuickPage(): JSX.Element {
       {error && <Notice error>{error}</Notice>}
       {frames.length > 0 && <nav className="quick-breadcrumb" aria-label="概念路径">{frames.map((frame, index) => <button key={frame.thread.threadId} disabled={busy} onClick={() => { setFrames(frames.slice(0, index + 1)); setQuestion('') }}>{frame.term.canonical}</button>)}</nav>}
       {active && <section className="quick-detail">
-        <h1>{active.term.canonical}</h1><span className="source-label">{active.explanation.source === 'lexicon' ? '本地词库' : active.explanation.source === 'cache' ? '本地缓存' : 'AI 生成'}</span>
+        <h1>{active.term.canonical}</h1><span className="source-label">{active.explanation.source === 'lexicon' ? '本地词库' : active.explanation.source === 'cache' ? '本地缓存' : active.explanation.source === 'token' ? '基础分词' : 'AI 生成'}</span>
         <p>{active.explanation.detail?.definition ?? active.explanation.brief}</p>
         {active.explanation.detail?.background && <p>{active.explanation.detail.background}</p>}
         {!!active.explanation.detail?.keyPoints.length && <ul>{active.explanation.detail.keyPoints.map((point, index) => <li key={index}>{point}</li>)}</ul>}

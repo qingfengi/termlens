@@ -8,7 +8,7 @@ type BriefPreview = { term: Term; left: number; top: number; explanation?: Expla
 const LEVELS: { value: ExplanationLevel; label: string }[] = [
   { value: 'beginner', label: '入门' }, { value: 'intermediate', label: '进阶' }, { value: 'expert', label: '深入' }
 ]
-const SOURCE_NAMES = { lexicon: '本地词库', cache: '已缓存', llm: 'AI 生成' }
+const SOURCE_NAMES = { lexicon: '本地词库', cache: '已缓存', llm: 'AI 生成', token: '基础分词' }
 const EXAMPLE = '机器学习通过数据训练模型，从而发现规律并进行预测。训练过程中，过拟合会让模型在训练数据上表现很好，却无法应对新的数据。理解梯度下降、神经网络和注意力机制，有助于进一步理解大语言模型。'
 
 function validTerms(text: string, terms: Term[]): Term[] {
@@ -154,17 +154,19 @@ export function ReaderPage(): JSX.Element {
     setDocumentNotice('')
     const sequence = documentSequence.current
     try {
-      const result = await api().termDetect({ text, useAi })
+      const result = await api().termDetect({ text, useAi, tokenize: true })
       if (sequence !== documentSequence.current) return
       const matched = validTerms(text, result.terms)
       setTerms(matched)
       setEditing(false)
-      setDocumentNotice(result.warning || (matched.length ? `已识别 ${matched.length} 处术语` : '未识别到术语'))
+      setDocumentNotice(result.warning || (matched.length ? `已分词并标记 ${matched.length} 处词语` : '未识别到可点击词语'))
     } catch (error) { if (sequence === documentSequence.current) setDocumentError(errorText(error)) }
     finally { setDetecting(false) }
   }
 
   async function openTerm(term: Term, parents: Frame[] = [], existing?: ConceptThread, requestedLevel = level): Promise<void> {
+    const config = await api().configGet()
+    if (parents.length >= config.term.maxNestedDepth) return
     const sequence = ++detailSequence.current
     lastOpen.current = { term, parents, existing, level: requestedLevel }
     closeBrief()

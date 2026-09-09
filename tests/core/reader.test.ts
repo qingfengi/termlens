@@ -40,6 +40,24 @@ describe('reader and terminology workflows', () => {
     expect(result.terms.every((term) => term.range[1] > term.range[0])).toBe(true)
   })
 
+  it('provides complete basic tokenization when requested', async () => {
+    const result = await service().detect('一句分词也没有，OpenAI 模型 2026。', false, true)
+    expect(result.terms.map((term) => term.surface)).toEqual(['一句', '分词', '也没有', 'OpenAI', '模型', '2026'])
+    expect(result.terms.every((term) => term.source === 'token' || term.source === 'lexicon')).toBe(true)
+  })
+
+  it('recognizes ordinary Chinese words that are not in the professional lexicon', async () => {
+    const result = await service().detect('上溢和下溢都会影响程序运行。', false, true)
+    expect(result.terms.map((term) => term.surface)).toEqual(['上溢', '和', '下溢', '都会', '影响', '程序', '运行'])
+    expect(result.terms.filter((term) => term.surface === '上溢' || term.surface === '下溢')).toHaveLength(2)
+  })
+
+  it('reports when basic tokenization exceeds the display limit', async () => {
+    const result = await service().detect(Array.from({ length: 1001 }, (_, index) => `词${index}`).join(' '), false, true)
+    expect(result.terms).toHaveLength(1000)
+    expect(result.warning).toContain('1000')
+  })
+
   it('honors disabled domains, ignored terms and disabled local detection', async () => {
     settings.term.enabledDomains = ['economics']
     expect((await service().detect('机器学习与回测')).terms.map((term) => term.canonical)).toEqual(['回测'])

@@ -58,7 +58,7 @@ export interface TermLensApi {
   providerRemove(id: string): Promise<AppSettingsParsed>
   providerTest(id: string): Promise<TestResult>
   providerModels(request: ProviderModelsRequest): Promise<ProviderModelsResult>
-  termDetect(request: { text: string; useAi?: boolean }): Promise<TermAnalysis>
+  termDetect(request: { text: string; useAi?: boolean; tokenize?: boolean }): Promise<TermAnalysis>
   termExplainSelection(request: { text: string; contextTerms?: string[] }): Promise<SelectionExplanation>
   termBrief(term: Term): Promise<Explanation>
   termDetail(request: OpenTermRequest): Promise<{ explanation: Explanation; thread: ConceptThread }>
